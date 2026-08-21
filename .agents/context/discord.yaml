@@ -1,0 +1,33 @@
+version: 1
+topology:
+  bot_per_project: 1
+  gateway_consumers_per_token: 1
+  runtime_location: project_team_dev_server
+  issue_thread_mapping: one_thread_per_github_issue
+identity:
+  canonical_format: "[alias/project]"
+  alias_source: ignored_runtime_registry
+  examples: ["[luke/onmam-dev]", "[dh/onmam-dev]"]
+routing:
+  channel_thread:
+    key: github_issue_number
+    purpose: [status, discussion, artifact_delivery, review_request]
+  direct_message:
+    key: discord_sender_id
+    resolves_to: registered_workspace
+    grants_authority: false
+    unresolved_behavior: fail_closed_and_request_registration
+behavior:
+  mention_required_in_shared_channel: true
+  coding_runs_in_ssh_workspace: true
+  discord_may_not_execute_without_issue: [code_change, merge, deployment, database_change]
+security:
+  tracked_registry: schema_and_placeholders_only
+  runtime_registry: ignored
+  participant_schema: schemas/participants.schema.json
+  alias_unique_within_project: true
+  sender_has_one_default_workspace: true
+  token_owner_lock: required
+  duplicate_consumer_behavior: fail_closed
+audit:
+  issue_records: [requester_alias, thread_reference, job_id, result_summary, commit_or_artifact_reference]

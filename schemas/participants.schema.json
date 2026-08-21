@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.nextain.invalid/naia-pj-adk/participants.schema.json",
+  "title": "Private runtime participant registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["participants"],
+  "properties": {
+    "participants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["discordUserId", "alias", "project", "workspace"],
+        "properties": {
+          "discordUserId": { "type": "string", "minLength": 1 },
+          "alias": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{1,31}$" },
+          "project": { "type": "string", "minLength": 1 },
+          "workspace": { "type": "string", "minLength": 1 },
+          "enabled": { "type": "boolean", "default": true }
+        }
+      }
+    }
+  }
+}

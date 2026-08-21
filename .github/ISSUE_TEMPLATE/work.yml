@@ -1,0 +1,37 @@
+name: Project work
+description: 모든 개발·검수·배포 작업의 정본 이슈
+title: "[project] "
+labels: [work]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: 원하는 결과
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 확인 방법과 완료 조건
+    validations:
+      required: true
+  - type: input
+    id: assignee_alias
+    attributes:
+      label: 담당자 별칭
+      placeholder: "예: dh/onmam-dev"
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: 영향 범위와 되돌리기
+    validations:
+      required: true
+  - type: checkboxes
+    id: gate
+    attributes:
+      label: 작업 전 확인
+      options:
+        - label: 개인 브랜치에서 작업하며 dev 병합 전 운영 배포나 DB 변경을 하지 않습니다.
+          required: true
