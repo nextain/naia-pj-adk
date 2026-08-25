@@ -25,6 +25,8 @@ security:
   tracked_registry: schema_and_placeholders_only
   runtime_registry: ignored
   participant_schema: schemas/participants.schema.json
+  # The schema cannot express the two invariants below; this command can.
+  participant_validator: scripts/validate-participants.mjs
   alias_unique_within_project: true
   sender_has_one_default_workspace: true
   token_owner_lock: required

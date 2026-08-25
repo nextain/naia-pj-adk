@@ -7,3 +7,9 @@ node_modules/
 coverage/
 *.log
 .DS_Store
+
+# Harness and session state written by AI tooling into whatever directory it
+# treats as a project root. These describe a machine and a moment, not the work.
+.agents/session-contracts/
+.agents/harness/
+.agents/progress/*.local.*

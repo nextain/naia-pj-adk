@@ -2,16 +2,78 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
+// Publication gate. This runs before the repository may become public, so a
+// pattern that is merely plausible is not enough: it has to catch the shapes
+// secrets actually take. An earlier version matched only a literal
+// `password=` and a dotted quad, and let a Discord bot token, an AWS key, a
+// bearer token, a Korean-labelled password and an IPv6 address through.
+//
+// False positives are cheap here. A scan that fails on a version string costs
+// one exclusion; a scan that misses a token costs a rotation.
+
 const root = path.resolve(import.meta.dirname, '..');
 const excluded = new Set(['.git', 'node_modules']);
-const forbiddenNames = new Set(['.env', 'id_rsa', 'id_ed25519']);
+const forbiddenNames = new Set([
+  // public-safety-allow: filenames, not hostnames
+  '.env', '.env.local', '.env.production',
+  'id_rsa', 'id_ed25519', 'id_ecdsa', 'id_dsa',
+  '.netrc', '.npmrc', '.pgpass', 'credentials', 'authorized_keys', 'known_hosts',
+  'service-account.json', 'gha-creds.json'
+]);
+
 const suspicious = [
-  /-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----/,
-  /(?:discord(?:_bot)?_token|github_token|password)[ \t]*[:=][ \t]*[^\s"']{8,}/i,
-  /https?:\/\/[^\s/@]+:[^\s/@]+@/,
-  /\b(?:\d{1,3}\.){3}\d{1,3}\b/
+  { id: 'private-key-block', re: /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/ },
+  { id: 'ssh-public-key', re: /\bssh-(?:rsa|ed25519|dss)\s+AAAA[0-9A-Za-z+/]{20,}/ },
+  { id: 'credentials-in-url', re: /\b[a-z][a-z0-9+.-]*:\/\/[^\s/@:]+:[^\s/@]+@/i },
+
+  // Labelled secrets. The label list is deliberately broad and includes the
+  // Korean words that appear in this project's own documents.
+  {
+    id: 'labelled-secret',
+    re: /\b(?:pass(?:word|wd|phrase)?|secret|client[_-]?secret|token|access[_-]?token|refresh[_-]?token|api[_-]?key|apikey|private[_-]?key|auth|credential|bearer)\b\s*[:=]\s*["']?[^\s"',;]{8,}/i
+  },
+  { id: 'labelled-secret-ko', re: /(?:비밀번호|비밀\s?키|암호|토큰|자격\s?증명)\s*[:=]\s*["']?\S{6,}/ },
+
+  // Provider-shaped values that need no label to be dangerous.
+  { id: 'aws-access-key', re: /\b(?:AKIA|ASIA|AGPA|AIDA|AROA|ANPA|ANVA)[0-9A-Z]{16}\b/ },
+  { id: 'github-token', re: /\bgh[pousr]_[0-9A-Za-z]{30,}\b/ },
+  { id: 'slack-token', re: /\bxox[abprs]-[0-9A-Za-z-]{10,}\b/ },
+  { id: 'google-api-key', re: /\bAIza[0-9A-Za-z_-]{30,}\b/ },
+  { id: 'openai-key', re: /\bsk-(?:live-|proj-)?[0-9A-Za-z_-]{16,}\b/ },
+  { id: 'jwt', re: /\beyJ[0-9A-Za-z_-]{10,}\.[0-9A-Za-z_-]{10,}\.[0-9A-Za-z_-]{10,}\b/ },
+  // Discord bot tokens are three dot-separated base64 segments beginning with
+  // the base64 of a snowflake.
+  { id: 'discord-bot-token', re: /\b[MNO][0-9A-Za-z_-]{22,}\.[0-9A-Za-z_-]{6}\.[0-9A-Za-z_-]{25,}\b/ },
+
+  // Addresses and hosts. The policy forbids private hosts and IP addresses in
+  // tracked files, so both families are matched.
+  { id: 'ipv4', re: /\b(?:\d{1,3}\.){3}\d{1,3}\b/ },
+  { id: 'ipv6', re: /(?<![0-9A-Za-z:])(?:[0-9A-Fa-f]{1,4}:){2,7}(?::|[0-9A-Fa-f]{1,4})(?![0-9A-Za-z:])/ },
+  { id: 'internal-hostname', re: /\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.(?:internal|intranet|corp|lan|local|localdomain)\b/i },
+
+  // Discord snowflakes identify a person. The schema stores them only in the
+  // ignored runtime registry, so a bare one in a tracked file is a leak.
+  { id: 'discord-snowflake', re: /\b(?:discord[^\n]{0,24})\b\D(1[0-9]{16,18}|[2-9][0-9]{16,18})\b/i }
 ];
+
+// Lines a maintainer has justified in place. The marker records that a human
+// looked at it, which is the only reason a publication gate may stay quiet.
+const ALLOW_MARKER = 'public-safety-allow:';
+
 const findings = [];
+
+function inspectText(label, text) {
+  const lines = text.split('\n');
+  for (const { id, re } of suspicious) {
+    for (let i = 0; i < lines.length; i++) {
+      if (!re.test(lines[i])) continue;
+      const context = `${lines[i - 1] ?? ''}\n${lines[i]}`;
+      if (context.includes(ALLOW_MARKER)) continue;
+      findings.push(`${label}:${i + 1}: ${id}`);
+      break;
+    }
+  }
+}
 
 function walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -19,22 +81,11 @@ function walk(dir) {
     const full = path.join(dir, entry.name);
     const rel = path.relative(root, full);
     if (forbiddenNames.has(entry.name)) findings.push(`${rel}: forbidden filename`);
-    if (entry.isDirectory()) walk(full);
-    else {
-      const data = fs.readFileSync(full);
-      if (data.includes(0)) continue;
-      const text = data.toString('utf8');
-      suspicious.forEach((pattern, index) => {
-        if (pattern.test(text)) findings.push(`${rel}: pattern ${index + 1}`);
-      });
-    }
+    if (entry.isDirectory()) { walk(full); continue; }
+    const data = fs.readFileSync(full);
+    if (data.includes(0)) continue;
+    inspectText(rel, data.toString('utf8'));
   }
-}
-
-function inspectText(label, text) {
-  suspicious.forEach((pattern, index) => {
-    if (pattern.test(text)) findings.push(`${label}: pattern ${index + 1}`);
-  });
 }
 
 function scanReachableHistory() {
@@ -42,21 +93,37 @@ function scanReachableHistory() {
 
   let revisions = [];
   try {
+    // --all covers branches and tags. Reflog entries and dangling objects are
+    // not published by a clone, so they are out of scope here and belong to
+    // the pre-publication garbage-collection step instead.
     revisions = execFileSync('git', ['rev-list', '--all'], {
-      cwd: root,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore']
+      cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']
     }).trim().split('\n').filter(Boolean);
   } catch {
     findings.push('git history: unable to enumerate reachable revisions');
     return;
   }
 
+  // Commit messages travel with the history and have carried secrets before.
   for (const revision of revisions) {
-    const files = execFileSync('git', ['ls-tree', '-r', '--name-only', revision], {
-      cwd: root,
-      encoding: 'utf8'
-    }).trim().split('\n').filter(Boolean);
+    try {
+      const message = execFileSync('git', ['log', '-1', '--format=%B', revision], {
+        cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']
+      });
+      inspectText(`history ${revision.slice(0, 12)} <commit message>`, message);
+    } catch {
+      findings.push(`history ${revision.slice(0, 12)}: unable to read commit message`);
+    }
+
+    let files = [];
+    try {
+      files = execFileSync('git', ['ls-tree', '-r', '--name-only', revision], {
+        cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']
+      }).trim().split('\n').filter(Boolean);
+    } catch {
+      findings.push(`history ${revision.slice(0, 12)}: unable to list files`);
+      continue;
+    }
 
     for (const file of files) {
       if (file.split('/').some((part) => forbiddenNames.has(part))) {
@@ -65,10 +132,7 @@ function scanReachableHistory() {
       let data;
       try {
         data = execFileSync('git', ['show', `${revision}:${file}`], {
-          cwd: root,
-          encoding: null,
-          maxBuffer: 10 * 1024 * 1024,
-          stdio: ['ignore', 'pipe', 'ignore']
+          cwd: root, encoding: null, maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore']
         });
       } catch {
         findings.push(`history ${revision.slice(0, 12)} ${file}: unable to inspect`);
@@ -81,9 +145,11 @@ function scanReachableHistory() {
 
 walk(root);
 scanReachableHistory();
+
 if (findings.length) {
   console.error('public-safety scan failed (values intentionally omitted):');
   findings.forEach((item) => console.error(`- ${item}`));
+  console.error(`\nIf a match is genuinely safe, put \`${ALLOW_MARKER} <reason>\` on the line above it.`);
   process.exit(1);
 }
-console.log('public-safety scan passed');
+console.log(`public-safety scan passed (${suspicious.length} patterns, tree and reachable history)`);

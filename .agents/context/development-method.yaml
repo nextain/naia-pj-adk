@@ -1,0 +1,119 @@
+version: 1
+
+# How work is defined before it is built.
+#
+# `workflow.yaml` moves an item between states and `execution.yaml` decides what
+# a machine refuses at deploy time. Neither says how a request becomes a
+# buildable specification, and that is where large tasks actually fail.
+#
+# The observed failure is specific: an agent handed a big request starts
+# implementing immediately, fixes part of it, and reports the whole task done.
+# Small edits hide this because the goal fits inside the sentence that asked
+# for it. Large ones do not.
+
+vocabulary:
+  # Axis zero. Everything below depends on words meaning one thing.
+  glossary_required: true
+  undefined_term_behavior: ask, never infer
+  rationale: >
+    An abbreviation read the wrong way propagates through scope, tests, and
+    review without ever looking wrong. In the reference project "FE" was read
+    as Frontend when it meant Feature, and the whole specification drifted from
+    a single guess. A term that is not in the glossary is a question, not a
+    guess.
+  applies_to: [requests, issues, contracts, commit messages, review comments]
+
+change_classification:
+  # Decide the size before assigning the work, not after.
+  required_before_assignment: true
+  classes:
+    - id: simple_change
+      definition: one file family, no schema change, no new user-visible behavior
+      requires: [issue, verification, rollback]
+    - id: feature_change
+      definition: new or changed user-visible behavior, or multiple coupled files
+      requires: [issue, use_case, feature_spec, tests, verification, rollback]
+    - id: high_impact_change
+      definition: >
+        shared data, authority, routing, credentials, or anything touching a
+        production tier
+      requires: [everything_in_feature_change, independent_review]
+  misclassification_behavior: escalate_to_the_larger_class
+  rationale: >
+    The cost of treating a simple change as a feature is a little paperwork.
+    The cost of the reverse is a half-finished feature reported as complete.
+
+use_case:
+  # What the requester wants, in their words, testable.
+  written_by: requester_or_agent_on_their_behalf
+  confirmed_by: requester
+  fields: [actor, precondition, steps, expected_result, acceptance_criteria]
+  rule: work does not start without a confirmed use case for feature_change and above
+  acceptance_criteria_must_be: observable_by_the_requester_without_reading_code
+
+feature_spec:
+  # What will be built, and what it touches.
+  derived_from: use_case
+  fields: [behavior, interface, data, impact_scope, out_of_scope]
+  impact_scope_layers:
+    - directly_changed
+    - depends_on_the_change
+    - shares_state_with_the_change
+  rule: >
+    A feature spec that lists no third layer has not been checked for shared
+    state; say so explicitly rather than leaving the field empty.
+
+tests:
+  use_case_test:
+    purpose: proves the requester's scenario works
+    run_by: human_against_the_running_environment
+    gates: deployment_acceptance
+  feature_test:
+    purpose: proves the behavior and prevents regression
+    run_by: automation
+    gates: merge
+  rule: a passing feature test does not satisfy a use case test, and the reverse is also false
+
+independent_review:
+  # For high-impact changes, the implementer is not the reviewer.
+  required_for: [high_impact_change]
+  reviewer_must_be: independent_of_the_implementation
+  reviewer_reads: [exact_diff, exact_commands, runbook, blast_radius, concurrent_work, rollback, verification_plan]
+  receipt_binds: [diff_digest, command_digest, runbook_digest, baseline_digest, rollback_digest]
+  invalidated_by: any_change_to_a_bound_input_or_to_the_environment_baseline
+  unavailable_reviewer_behavior: do_not_proceed
+  rationale: >
+    Review that is not bound to exact inputs is an opinion about an earlier
+    version. Binding the digests is what makes the verdict mean something when
+    the command finally runs.
+
+shared_data:
+  # Regex guards are assistance. Privilege separation is the guarantee.
+  layers:
+    - id: content_scan
+      strength: leaky
+      note: pattern matching over commands and diffs; helps, never proves
+    - id: policy_declaration
+      strength: procedural
+      note: written authority per environment in the project adapter
+    - id: privilege_separation
+      strength: authoritative
+      note: the credential in use cannot perform the forbidden write
+  rule: >
+    Until privilege separation is active, the only real barrier is leaky. State
+    that plainly in the adapter instead of describing the project as protected.
+  read_policy:
+    allowed_without_review: single_row_or_indexed_lookup_with_explicit_limit
+    requires_review: full_scan, multi_join, aggregate, unknown_plan
+    rationale: >
+      A shared database is saturated by heavy reads, not only by writes, and a
+      thin development copy does not predict production behaviour.
+
+completion:
+  # Repeated here because this is the axis people skip first.
+  ai_may_not_declare_completion: true
+  required_before_claiming_done:
+    - every_step_of_the_class_was_recorded
+    - use_case_test_result_from_a_named_person
+    - verification_output_with_its_exit_code
+  missing_step_behavior: report_status_to_a_human, do_not_close

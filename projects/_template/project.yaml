@@ -5,13 +5,6 @@ project:
   issue_tracker: github
   default_branch: main
   integration_branch: dev
-environments:
-  development:
-    url: "https://replace.example"
-    database: project_declared_non_secret_name
-  production:
-    url: "https://replace.example"
-    database: never_store_credentials_here
 workspace:
   ssh_home_pattern: "~/project-name"
   branch_pattern: "issue/<number>-<short-name>"
@@ -31,3 +24,48 @@ commands:
 guards:
   production_requires_issue_approval: true
   database_write_requires_explicit_authority: true
+
+execution:
+  # Every command here must exit non-zero when its condition is not met.
+  # Leaving one null means the project has not yet implemented that guard, and
+  # the adapter is not ready for the target it refers to.
+  deploy_gate_command: null
+  artifact:
+    build_from: committed_revision
+    intake_scan_command: null
+  propagation:
+    development:
+      reload_command: null
+      cache_invalidation_command: null
+      serving_revision_proof_command: null
+    production:
+      reload_command: null
+      cache_invalidation_command: null
+      serving_revision_proof_command: null
+  verification:
+    command: null
+    required_strings: []
+    consecutive_passes: 2
+  rollback:
+    development: null
+    production: null
+  concurrency:
+    lease_file: .runtime/mutation-lease.json
+    shared_targets: [development, production]
+  drift_check_command: null
+tiers:
+  # A tier is a source-and-data pair, not a hostname. Declaring the address
+  # twice is how one copy quietly stops matching the other, so every fact about
+  # a tier lives here and nowhere else.
+  development:
+    url: "https://replace.example"
+    source_revision_origin: integration_branch
+    database: project_declared_non_secret_name
+    deployable_by: [integrator]
+    reachable: false
+  production:
+    url: "https://replace.example"
+    source_revision_origin: approved_revision_only
+    database: never_store_credentials_here
+    deployable_by: [release_owner]
+    reachable: false

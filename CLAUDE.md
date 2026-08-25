@@ -8,8 +8,10 @@ Before acting, read:
 
 1. `.agents/context/project-policy.yaml`
 2. `.agents/context/workflow.yaml`
-3. `.agents/context/discord.yaml` when Discord is involved
-4. `projects/<project>/project.yaml` and its `AGENTS.md` before project work
+3. `.agents/context/development-method.yaml` before scoping or building anything
+4. `.agents/context/execution.yaml` before any build, deployment, or verification
+5. `.agents/context/discord.yaml` when Discord is involved
+6. `projects/<project>/project.yaml` and its `AGENTS.md` before project work
 
 ## Non-negotiable rules
 
@@ -21,6 +23,12 @@ Before acting, read:
 - Never store tokens, passwords, personal Discord IDs, private hostnames, IP addresses, customer data, or production topology in tracked files. Use ignored runtime configuration and placeholders.
 - Do not copy requirements, progress records, logs, examples, or Git history from another project unless each item is intentionally adopted and safe for this repository.
 - Public creation, visibility change, template publication, or public push fails closed until the full tree and reachable Git history pass public-safety review and the owner approves the exact commit SHA.
+- Classify the change before assigning it. A feature needs a confirmed use case and a feature spec before implementation starts; skipping that is how part of a task gets reported as all of it.
+- A term that is not in the glossary is a question, not a guess.
+- A deployment guard is a command that exits non-zero, not a paragraph. An adapter whose `execution` commands are still `null` is not ready for the target those commands name.
+- Deployment is incomplete until the new revision is proven to be serving. Writing files, reloading a process, and taking effect are three different events.
+- A pass means the asserted body content appeared twice in a row and the checking process exited zero. A status code alone is not a pass.
+- Rollback must already exist as an artifact before the change begins.
 
 ## Project boundary
 

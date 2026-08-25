@@ -25,6 +25,8 @@
 
 자세한 내용은 [운영 절차](docs/WORKFLOW.ko.md)와 [Discord 협업 설계](docs/DISCORD.ko.md)를 참고합니다.
 
+절차는 누가 무엇을 하는지 정하고, [실행 계약 운영 매뉴얼](docs/OPERATIONS.ko.md)은 기계가 무엇을 거절해야 하는지 정합니다. 배포·검증·롤백을 붙이기 전에 후자를 먼저 읽습니다.
+
 ## 검증
 
 ```bash

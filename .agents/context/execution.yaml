@@ -1,0 +1,134 @@
+version: 1
+
+# Execution and verification contract.
+#
+# workflow.yaml says which states exist and who may move between them.
+# It does not say what a machine must refuse. A workflow that only asks for
+# records is satisfied by a well-written record of a broken deployment.
+#
+# Everything here is written so that a project adapter can implement it as a
+# command that exits non-zero. A rule nobody can fail is not a rule.
+
+deploy_gate:
+  # A deploy command must refuse before it changes anything, and must refuse
+  # on its own rather than relying on the operator having read a document.
+  preconditions:
+    - name: issue_open
+      why: work without a live work item leaves no place to record the result
+    - name: worktree_clean
+      why: an uncommitted file makes the deployed artifact unidentifiable
+    - name: integration_branch_is_ancestor
+      why: >
+        deploying a branch that does not contain the integration branch silently
+        reverts whatever landed since it forked
+    - name: change_is_non_empty
+      why: a deploy identical to the integration branch hides a failed merge
+    - name: actor_is_authorized_for_target
+      why: shared and production targets are role-gated, not convention-gated
+  failure_behavior: refuse_without_side_effects
+  refusal_must_name: [failed_precondition, how_to_satisfy_it]
+
+artifact:
+  # Build from a committed revision, not from whatever is on disk.
+  build_from: committed_revision
+  method: export_revision_to_clean_staging_directory
+  server_source_mount: forbidden
+  immutability: artifact_is_addressed_by_revision_and_never_rebuilt_in_place
+  intake_scan:
+    required_when: source_crosses_a_trust_boundary
+    on_failure: refuse
+  rationale: >
+    A running environment that is edited in place cannot be compared with any
+    revision, so drift becomes undetectable and rollback becomes guesswork.
+
+propagation:
+  # Writing files is not the same as the change taking effect.
+  declare_per_environment: true
+  fields:
+    - runtime_caches_that_must_be_invalidated
+    - edge_or_cdn_paths_that_must_be_invalidated
+    - restart_or_reload_command
+    - how_to_prove_the_new_revision_is_serving
+  rule: deployment_is_incomplete_until_propagation_is_proven
+  rationale: >
+    Byte-code and edge caches keep serving the previous revision after the
+    files change. Skipping this step produces a deploy that reports success and
+    changes nothing.
+
+verification:
+  # What counts as a pass. Field names like "validation" are not definitions.
+  minimum_assertions:
+    - status_code
+    - minimum_body_size
+    - required_content_string
+  forbidden_as_sole_evidence:
+    - status_code_only
+    - internal_health_endpoint_only
+    - single_url
+    - operator_statement_without_command_output
+  gate: process_exit_code
+  consecutive_passes_required: 2
+  when: [before_change_as_baseline, after_change]
+  on_any_failure: stop_and_execute_bound_rollback
+  cache_bypass_required_for_recovery_checks: true
+  rationale: >
+    A failing service can keep returning a success status with an error body,
+    and an edge cache can keep serving a stale failure after the fix lands.
+    Assertions must read the body, and a recovery check must bypass the cache.
+
+rollback:
+  # A described rollback is not a rollback.
+  must_be_materialized_before_change: true
+  acceptable_forms:
+    - previous_artifact_retained_and_addressable
+    - configuration_backup_written_and_verified
+    - revert_revision_prepared
+  bound_to: [target_environment, revision, exact_command]
+  verified_by: same_verification_contract_as_the_change
+  rationale: >
+    Rollback plans written as prose are discovered to be wrong at the moment
+    they are needed. The artifact must already exist.
+
+concurrency:
+  # One writer per shared target.
+  shared_target_requires_lease: true
+  lease:
+    scope: [environment, owner, expiry]
+    max_duration_minutes: 15
+    expiry_behavior: alarm_not_auto_release
+    release_condition: verification_passed_or_rollback_verified
+  concurrent_mutation: forbidden
+  rationale: >
+    Two simultaneous changes to one environment make both unattributable, and
+    an expiring lease that auto-releases invites exactly that.
+
+drift:
+  # Declared state versus running state.
+  must_be_detectable_for:
+    - deployed_revision_versus_integration_branch
+    - runtime_configuration_versus_tracked_configuration
+    - environment_tier_definition_versus_actual_wiring
+  detection: comparison_command_that_exits_non_zero_on_mismatch
+  on_detection: record_and_resolve_before_next_deployment
+  rationale: >
+    Environments drift silently. A tier that quietly stopped existing, or a
+    deployment target many revisions behind the integration branch, is only
+    found during an incident unless something compares them on purpose.
+
+environment_tiers:
+  # A tier is a source-and-data pair, not a hostname.
+  declare_per_tier: [source_revision_origin, database, who_may_deploy]
+  rule: >
+    Changing a tier's database or source origin changes what the tier proves.
+    Tier definitions are reviewed as a set, never edited one field at a time.
+  tier_must_be_reachable_to_count_as_a_tier: true
+
+completion:
+  # Who decides that work is done.
+  ai_may_not_declare_completion: true
+  decided_by: named_human_acceptance_against_written_steps
+  evidence_required: [environment, revision, operator, verification_output, rollback_reference]
+  rationale: >
+    An agent reports what it observed. Whether that satisfies the request is a
+    human judgment, and recording it as such is what makes the record usable
+    later.
