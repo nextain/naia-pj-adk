@@ -62,13 +62,16 @@ for (const [, actor] of workflow.matchAll(/actor:\s*(\w+)/g)) {
 // The execution contract must keep naming the things that cost outages when
 // they are missing. These keys are load-bearing, not decoration.
 const execution = fs.readFileSync(path.join(root, '.agents/context/execution.yaml'), 'utf8');
-for (const key of ['deploy_gate', 'artifact', 'propagation', 'verification', 'rollback', 'concurrency', 'drift', 'environment_tiers', 'completion']) {
+for (const key of ['deploy_gate', 'artifact', 'propagation', 'verification', 'rollback', 'concurrency', 'drift', 'watchdog', 'environment_tiers', 'completion']) {
   if (!new RegExp(`^${key}:`, 'm').test(execution)) {
     throw new Error(`execution contract missing top-level section: ${key}`);
   }
 }
 if (!execution.includes('ai_may_not_declare_completion: true')) {
   throw new Error('execution contract must keep completion a human decision');
+}
+for (const rule of ['one_item_may_not_stop_the_sweep: true', 'own_failure_must_alarm: true']) {
+  if (!execution.includes(rule)) throw new Error(`execution contract must keep the watchdog rule: ${rule}`);
 }
 
 // The development method must keep naming the axes that large tasks skip.

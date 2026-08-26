@@ -123,6 +123,30 @@ environment_tiers:
     Tier definitions are reviewed as a set, never edited one field at a time.
   tier_must_be_reachable_to_count_as_a_tier: true
 
+watchdog:
+  # A watchdog is a promise that silence means nothing is wrong. That promise
+  # breaks quietly, because a dead watchdog and a calm system look identical
+  # from outside.
+  one_item_may_not_stop_the_sweep: true
+  per_item_failure: record_and_continue
+  rationale: >
+    A follow-up monitor iterated over tracked items and fetched each one with a
+    command that aborts the script on an error status. One item had been
+    completed and its resource was gone, so every run died on it and the
+    remaining items — all of them waiting on a person — went unchecked for days.
+    The thing that existed to keep waiting work visible was stopped by work that
+    had already finished.
+  own_failure_must_alarm: true
+  own_failure_channel: separate_from_the_watchdog_itself
+  rationale_own_failure: >
+    If the only way to hear from a watchdog is the watchdog running, its death
+    is indistinguishable from good news. The alarm has to come from somewhere
+    the failure cannot silence.
+  verify_by: forcing_a_failure_and_observing_the_alarm
+  stale_entry_policy: >
+    An entry whose subject no longer exists is resolved or removed, not left to
+    fail forever. A permanent false alert trains people to ignore the channel.
+
 completion:
   # Who decides that work is done.
   ai_may_not_declare_completion: true
