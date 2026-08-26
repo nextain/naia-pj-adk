@@ -99,6 +99,13 @@ if (at(execution, 'watchdog', 'one_item_may_not_stop_the_sweep') !== true) {
 if (at(execution, 'watchdog', 'own_failure_must_alarm') !== true) {
   throw new Error("execution contract must keep a watchdog's own failure alarming");
 }
+const reAsk = at(execution, 'watchdog', 'pending_human_response');
+if (typeof at(reAsk, 're_ask_after_minutes') !== 'number') {
+  throw new Error('execution contract must set how long a pending human response waits before it is asked again');
+}
+if (typeof at(reAsk, 'max_re_asks') !== 'number') {
+  throw new Error('execution contract must bound how often a person is asked again');
+}
 if (at(execution, 'artifact', 'server_source_mount') !== 'forbidden') {
   throw new Error('execution contract must keep server source mounts forbidden');
 }

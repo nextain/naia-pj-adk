@@ -143,6 +143,21 @@ watchdog:
     is indistinguishable from good news. The alarm has to come from somewhere
     the failure cannot silence.
   verify_by: forcing_a_failure_and_observing_the_alarm
+  pending_human_response:
+    # 사람이 답할 차례일 때, 기다리기만 하는 것은 추적이 아니다.
+    re_ask_after_minutes: 60
+    re_ask_where: the_thread_the_person_is_in
+    minimum_acceptable_reply: an_acknowledgement
+    max_re_asks: 3
+    then: escalate_as_stuck_rather_than_asking_again
+    cleared_by: any_reply_from_a_person
+    rationale: >
+      A watchdog that only tells the operator is invisible to the person whose
+      answer it needs. Two items waited more than a day while the only signal
+      went somewhere else. Asking again in the same place, and saying that a
+      single "received" is enough, turns silence into a decision someone made
+      rather than a message nobody saw. Repeating forever teaches people to
+      ignore the channel, so the loop ends and becomes an escalation.
   stale_entry_policy: >
     An entry whose subject no longer exists is resolved or removed, not left to
     fail forever. A permanent false alert trains people to ignore the channel.
