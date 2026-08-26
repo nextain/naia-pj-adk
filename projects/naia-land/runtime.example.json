@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "project": "naia-land",
+  "actorRole": "integrator",
+  "issueNumber": 1,
+  "workspace": "/absolute/path/to/naia.land",
+  "discord": {
+    "guildId": "runtime-only-snowflake",
+    "channelId": "runtime-only-snowflake",
+    "applicationId": "runtime-only-snowflake",
+    "gatewayInstanceId": "naia-land-dev-1"
+  },
+  "development": {
+    "integrationBranch": "main",
+    "url": "https://runtime-configured.example",
+    "minimumBodyBytes": 1000,
+    "requiredStrings": ["runtime-configured"],
+    "deployCommand": ["runtime-deploy-command"],
+    "reloadCommand": ["runtime-reload-command"],
+    "cacheInvalidationCommand": ["runtime-cache-command"],
+    "servingRevisionCommand": ["runtime-revision-command"],
+    "rollbackPrepareCommand": ["runtime-rollback-prepare-command"],
+    "rollbackCommand": ["runtime-rollback-command"]
+  }
+}
