@@ -27,6 +27,10 @@
 
 절차는 누가 무엇을 하는지 정하고, [실행 계약 운영 매뉴얼](docs/OPERATIONS.ko.md)은 기계가 무엇을 거절해야 하는지 정합니다. 배포·검증·롤백을 붙이기 전에 후자를 먼저 읽습니다.
 
+작업을 정의하는 앞 단계는 [`development-method.yaml`](.agents/context/development-method.yaml) 이 담습니다. 용어에서 시작해 UC 와 FE 로 내려가고, 큰 변경은 배정 전에 분류합니다.
+
+이 저장소는 비공개입니다. 무엇이 충족돼야 공개할 수 있는지는 [공개 준비 상태](docs/OPENING.ko.md)에 적혀 있습니다.
+
 ## 검증
 
 ```bash

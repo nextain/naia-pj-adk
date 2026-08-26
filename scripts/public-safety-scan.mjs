@@ -51,9 +51,26 @@ const suspicious = [
   { id: 'ipv6', re: /(?<![0-9A-Za-z:])(?:[0-9A-Fa-f]{1,4}:){2,7}(?::|[0-9A-Fa-f]{1,4})(?![0-9A-Za-z:])/ },
   { id: 'internal-hostname', re: /\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.(?:internal|intranet|corp|lan|local|localdomain)\b/i },
 
-  // Discord snowflakes identify a person. The schema stores them only in the
-  // ignored runtime registry, so a bare one in a tracked file is a leak.
-  { id: 'discord-snowflake', re: /\b(?:discord[^\n]{0,24})\b\D(1[0-9]{16,18}|[2-9][0-9]{16,18})\b/i }
+  // People. The policy forbids personal ids and customer data in tracked files,
+  // and an earlier version detected only Discord snowflakes, so an email address
+  // or a phone number passed while the policy said they must not.
+  { id: 'discord-snowflake', re: /\b(?:discord[^\n]{0,24})\b\D(1[0-9]{16,18}|[2-9][0-9]{16,18})\b/i },
+  { id: 'email-address', re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/ },
+  { id: 'phone-e164', re: /(?<![\w.])\+[1-9]\d{7,14}(?![\w.])/ },
+  { id: 'phone-kr', re: /(?<![\w.-])01[0-9][-\s]?\d{3,4}[-\s]?\d{4}(?![\w.-])/ },
+  { id: 'korean-rrn', re: /(?<![\w-])\d{6}[-\s]?[1-4]\d{6}(?![\w-])/ },
+  { id: 'credit-card', re: /(?<![\w-])(?:\d[ -]?){13,19}(?![\w-])/ }
+];
+
+// What this scan claims to cover. A gate that does not say what it looks for
+// gets quoted as if it looked for everything.
+export const COVERAGE = [
+  'private key blocks and SSH public keys',
+  'credentials embedded in URLs',
+  'labelled secrets in English and Korean',
+  'provider-shaped tokens: AWS, GitHub, Slack, Google, OpenAI, JWT, Discord bot',
+  'IPv4, IPv6, and internal hostnames',
+  'personal identifiers: Discord snowflake, email, phone, resident registration, card-shaped digits',
 ];
 
 // Lines a maintainer has justified in place. The marker records that a human
@@ -153,3 +170,4 @@ if (findings.length) {
   process.exit(1);
 }
 console.log(`public-safety scan passed (${suspicious.length} patterns, tree and reachable history)`);
+console.log(`covered: ${COVERAGE.join('; ')}`);
