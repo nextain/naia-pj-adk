@@ -146,6 +146,13 @@ function scanReachableHistory() {
       if (file.split('/').some((part) => forbiddenNames.has(part))) {
         findings.push(`history ${revision.slice(0, 12)} ${file}: forbidden filename`);
       }
+      // A gitlink records only a referenced commit ID. It has no blob body for
+      // `git show <revision>:<path>` to inspect, while the submodule's own
+      // repository remains outside this repository's reachable history.
+      const treeEntry = execFileSync('git', ['ls-tree', revision, '--', file], {
+        cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']
+      });
+      if (treeEntry.startsWith('160000 ')) continue;
       let data;
       try {
         data = execFileSync('git', ['show', `${revision}:${file}`], {
