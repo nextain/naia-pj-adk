@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { parseYaml, at } from './lib/yaml-lite.mjs';
 
 // Structure validation reads the contracts as data.
@@ -12,6 +13,16 @@ import { parseYaml, at } from './lib/yaml-lite.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
+
+// A gitlink is an opaque commit pointer: this repository cannot inspect the
+// child tree or its reachable history in CI. Until a signed, pinned child-scan
+// receipt is part of the contract, fail closed instead of silently exempting a
+// submodule from adapter and public-release validation.
+const gitlinks = execFileSync('git', ['ls-files', '--stage'], { cwd: root, encoding: 'utf8' })
+  .trim().split('\n').filter((line) => line.startsWith('160000 '));
+if (gitlinks.length || fs.existsSync(path.join(root, '.gitmodules'))) {
+  throw new Error('git submodules are unsupported until a pinned child validation and public-safety receipt is implemented');
+}
 
 function contract(relative) {
   try {
