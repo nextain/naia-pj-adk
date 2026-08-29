@@ -4,8 +4,9 @@
   "private": true,
   "description": "Private team-and-project-centered AI collaboration ADK",
   "scripts": {
-    "test": "node scripts/validate.mjs && node scripts/public-safety-scan.mjs",
-    "validate:participants": "node scripts/validate-participants.mjs"
+    "test": "node scripts/validate.mjs && bash ops/gateway/selftest.sh && node scripts/public-safety-scan.mjs",
+    "validate:participants": "node scripts/validate-participants.mjs",
+    "gateway:selftest": "bash ops/gateway/selftest.sh"
   },
   "engines": {
     "node": ">=20"

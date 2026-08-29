@@ -17,6 +17,16 @@ discord:
   project_alias: replace-me
   bot_token_env: DISCORD_BOT_TOKEN
   runtime_registry: .runtime/participants.json
+  # 사람에게 확인을 요청해도 되는 시간. Discord 를 켜면 반드시 채웁니다.
+  # 서버 시계로 판정하면 표준시간대만큼 어긋나므로 여기에 명시합니다.
+  contact_window:
+    timezone: null            # 예: Asia/Seoul
+    days: null                # 예: [mon, tue, wed, thu, fri]
+    start_hour: null          # 예: 10
+    end_hour: null            # 예: 18 (이 시각 정각부터는 보내지 않습니다)
+  # 담당이 정해지지 않은 요청을 받을 사람. 별칭만 적습니다. 개인 식별자는
+  # 추적하지 않는 런타임 등록부에 둡니다.
+  default_responder_alias: null
 commands:
   validate: "replace-with-project-command"
   deploy_dev: null

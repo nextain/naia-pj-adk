@@ -1,0 +1,12 @@
+# 어느 감시 유닛이 죽어도 사람에게 알린다.
+# %i 는 실패한 유닛의 전체 이름이다. OnFailure 가 %n 으로 넘긴다.
+#
+# 설치: 이 파일과 onfailure.conf 를 사용자 유닛 경로에 두고,
+#   GATEWAY_OPS 를 이 저장소의 ops/gateway 경로로 바꾼다.
+[Unit]
+Description=Alert that gateway unit %i failed
+
+[Service]
+Type=oneshot
+Environment=GATEWAY_CONFIG=%h/.runtime/gateway.json
+ExecStart=GATEWAY_OPS/alert-unit-failed.sh %i

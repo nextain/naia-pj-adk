@@ -117,6 +117,15 @@ if (typeof at(reAsk, 're_ask_after_minutes') !== 'number') {
 if (typeof at(reAsk, 'max_re_asks') !== 'number') {
   throw new Error('execution contract must bound how often a person is asked again');
 }
+// Asking a person at night is not the same event as reporting breakage. The
+// contract has to say that only the ask is gated, or a project will gate both.
+const contactWindow = at(reAsk, 'contact_window');
+if (at(contactWindow, 'outside_window') !== 'defer_without_counting') {
+  throw new Error('execution contract must defer an out-of-hours ask without spending a re-ask');
+}
+if (!Array.isArray(at(contactWindow, 'never_gated')) || at(contactWindow, 'never_gated').length === 0) {
+  throw new Error('execution contract must name what a contact window never delays');
+}
 if (at(execution, 'artifact', 'server_source_mount') !== 'forbidden') {
   throw new Error('execution contract must keep server source mounts forbidden');
 }
@@ -174,6 +183,18 @@ const TIER_COMMANDS = [
 ];
 const PER_TIER_COMMANDS = ['reload_command', 'cache_invalidation_command', 'serving_revision_proof_command'];
 
+// A new project copies this template, so anything an onboarding step must answer
+// has to exist here as an unfilled field rather than be remembered by a person.
+const CONTACT_WINDOW_KEYS = ['timezone', 'days', 'start_hour', 'end_hour'];
+for (const key of CONTACT_WINDOW_KEYS) {
+  if (at(template, 'discord', 'contact_window', key) === undefined) {
+    throw new Error(`project template is missing discord.contact_window.${key}`);
+  }
+}
+if (at(template, 'discord', 'default_responder_alias') === undefined) {
+  throw new Error('project template is missing discord.default_responder_alias');
+}
+
 for (const target of TIER_COMMANDS) {
   if (at(template, ...target) === undefined) {
     throw new Error(`project template is missing ${target.join('.')}`);
@@ -204,6 +225,19 @@ for (const entry of fs.readdirSync(projectsDir, { withFileTypes: true })) {
   const text = read(relative);
   for (const placeholder of ['replace-me', 'replace.example', 'replace-with-']) {
     if (text.includes(placeholder)) throw new Error(`adapter ${entry.name} still carries the placeholder ${placeholder}`);
+  }
+
+  // Turning Discord on means the bot will ask people things. When it may ask has
+  // to be a decided value, not a default buried in whichever script runs it.
+  if (at(adapter, 'discord', 'enabled') === true) {
+    for (const key of CONTACT_WINDOW_KEYS) {
+      if (at(adapter, 'discord', 'contact_window', key) == null) {
+        throw new Error(`adapter ${entry.name} enables Discord but leaves discord.contact_window.${key} unset`);
+      }
+    }
+    if (at(adapter, 'discord', 'default_responder_alias') == null) {
+      throw new Error(`adapter ${entry.name} enables Discord but names nobody to ask by default`);
+    }
   }
 
   for (const [tier, definition] of Object.entries(at(adapter, 'tiers') ?? {})) {

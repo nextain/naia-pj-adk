@@ -31,5 +31,36 @@ security:
   sender_has_one_default_workspace: true
   token_owner_lock: required
   duplicate_consumer_behavior: fail_closed
+gateway_monitoring:
+  # 감시 자동화가 "설치됐다"와 "동작한다"를 구분하지 못해 첫 실증 프로젝트에서
+  # 이틀 동안 배분이 한 번도 성공하지 못했다. 아래는 그 사고에서 나온 계약이다.
+  verify_in_target_runtime: required          # 손 실행은 검증이 아니다
+  runtime_divergence_guard: required          # 인터프리터 경로·버전을 스크립트가 스스로 고정
+  guard_on_unmet_precondition: exit_nonzero   # 조용히 이어가지 않는다
+  state_query_failure: fail_closed            # 바쁜지 모르면 새 작업을 넣지 않는다
+  error_output_retention: required            # 이유를 못 적을 때 원문을 남긴다
+  failure_notification:
+    required_for: every_scheduled_unit
+    proof: deliberate_failure_then_confirm_message_arrival
+    unit_completion_is_not_delivery: true     # 유닛이 끝난 것은 알림이 갔다는 뜻이 아니다
+  outer_watchdog:
+    location: outside_the_monitored_host      # 안쪽 감시는 대상과 함께 죽는다
+    detects: [host_down, agent_silent, automation_silent]
+  reconciliation:
+    surfaces: [tracker, github_issue, thread, gateway_binding]
+    reports_only: true                        # 대조는 고치지 않고 어긋난 곳만 말한다
+    must_print_source_path: true              # seed 와 runtime 이 나뉘면 어느 쪽을 읽었는지 밝힌다
+    deliberate_resolution_marker: closed_by   # 사람이 정리한 것은 불일치가 아니다
+  human_contact_window:
+    # 사람에게 하는 요청과 고장 알림은 다르다. 요청만 시간으로 막는다.
+    applies_to: [thread_nudge, routine_reminder_dm]
+    never_gated: [malfunction, delivery_failure, owed_reply_to_a_waiting_person]
+    schedule: project_local_business_hours   # 기본 월~금, 프로젝트가 시각을 정한다
+    timezone_source: project_configuration   # 서버 시계(UTC)로 판정하지 않는다
+    outside_window: defer_without_counting   # 횟수를 세지 않으므로 다음 창에 다시 온다
+    urgent_override: per_item_flag
+    health_vocabulary: follow_the_gateways_own_terms  # unhealthy 만 고장으로 센다
+  signals:
+    perfectly_regular_repeated_failure: suspect_never_succeeded
 audit:
   issue_records: [requester_alias, thread_reference, job_id, result_summary, commit_or_artifact_reference]
