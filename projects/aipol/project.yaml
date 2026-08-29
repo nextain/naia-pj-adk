@@ -17,6 +17,12 @@ discord:
   project_alias: aipol
   bot_token_env: DISCORD_AIPOL_TOKEN
   runtime_registry: .runtime/participants.json
+  contact_window:
+    timezone: Asia/Seoul
+    days: [mon, tue, wed, thu, fri]
+    start_hour: 10
+    end_hour: 18
+  default_responder_alias: workspace_owner
 commands:
   validate: "python -m pytest -q"
   deploy_dev: "bash /opt/aipol/workspaces/aipol-lab/internal/operations/aipol-dev/scripts/deploy-dev.sh"

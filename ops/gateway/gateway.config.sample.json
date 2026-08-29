@@ -1,0 +1,13 @@
+{
+  "_": "게이트웨이 감시 런타임 설정. 실제 값이 든 사본은 추적하지 않는 경로(.runtime/gateway.json)에 두고, 이 파일에는 모양만 남긴다.",
+  "guild_id": "<Discord 길드 식별자>",
+  "channel_id": "<협업 채널 식별자. 이슈 스레드가 이 아래에 생긴다>",
+  "token_file": "<봇 토큰이 든 파일 경로. 토큰 자체를 여기 적지 않는다>",
+  "tracker": "<후속 추적표 경로. schemas/followups.schema.json 모양>",
+  "operator_dm_channel_id": "<감시 유닛이 죽었을 때 알릴 DM 채널>",
+  "alert_mention": "<그 알림에서 부를 대상. 예: <@…>>",
+  "alert_dir": "<첨부 파일을 만들 소유자 전용 디렉터리. /tmp 는 상위 소유자가 달라 도구가 거절한다>",
+  "repositories": {
+    "<추적표 키의 저장소 이름>": "<owner/repo>"
+  }
+}

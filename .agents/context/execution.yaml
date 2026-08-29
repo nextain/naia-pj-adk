@@ -147,10 +147,39 @@ watchdog:
     # 사람이 답할 차례일 때, 기다리기만 하는 것은 추적이 아니다.
     re_ask_after_minutes: 60
     re_ask_where: the_thread_the_person_is_in
+    re_ask_addresses: the_last_person_who_spoke_there
+    re_ask_fallback: project_declared_default_responder
+    quoted_text_mentions: neutralized
+    rationale_addressing: >
+      A re-ask that names nobody notifies nobody. It sits in a thread the person
+      is not watching, and six items reached the re-ask limit without anyone being
+      told. The person being waited on is almost always the last one who spoke
+      there, which is derivable without a registry. But text quoted from other
+      people must not keep its calling power: one stored summary contained
+      "@everyone", and a single confirmation request would have paged the whole
+      server. Address the person you decided to address, and leave quoted calls as
+      letters.
     minimum_acceptable_reply: an_acknowledgement
     max_re_asks: 3
     then: escalate_as_stuck_rather_than_asking_again
     cleared_by: any_reply_from_a_person
+    contact_window:
+      # 고장 알림과 확인 요청은 다른 것이다. 요청만 시간으로 막는다.
+      applies_to: [re_ask, routine_reminder]
+      never_gated: [malfunction, delivery_failure, owed_reply_to_a_waiting_person]
+      schedule_source: project_adapter
+      timezone_source: project_adapter
+      outside_window: defer_without_counting
+      urgent_override: per_item_flag
+      health_vocabulary: follow_the_watched_tools_own_terms
+      rationale: >
+        Alerting that something is broken and asking a person to confirm are
+        different acts. Breakage has to be heard whenever it happens, but "please
+        confirm" only means anything while the person is working. An hourly ask at
+        night and on weekends does not make the answer arrive sooner; it teaches
+        people to ignore the channel. Outside the window the ask is deferred
+        without counting, because counting it spends the re-ask budget while
+        nobody could see it. Only an item marked urgent passes.
     rationale: >
       A watchdog that only tells the operator is invisible to the person whose
       answer it needs. Two items waited more than a day while the only signal
