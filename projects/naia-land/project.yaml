@@ -1,0 +1,67 @@
+version: 1
+project:
+  id: naia-land
+  repository: nextain/naia.land
+  issue_tracker: github
+  default_branch: main
+  integration_branch: main
+workspace:
+  ssh_home_pattern: "~/naia.land"
+  branch_pattern: "issue/<number>-<short-name>"
+roles:
+  contributors: [contributor]
+  integrators: [integrator]
+  release_owners: [release_owner]
+discord:
+  enabled: true
+  project_alias: naia-land
+  bot_token_env: NAIA_DISCORD_BOT_TOKEN
+  runtime_registry: .runtime/naia-land.json
+  mention_required: true
+  issue_thread_mapping: one_thread_per_github_issue
+  duplicate_consumer_behavior: fail_closed
+commands:
+  validate: "node projects/naia-land/scripts/project-ops.mjs validate-runtime"
+  deploy_dev: "node projects/naia-land/scripts/project-ops.mjs deploy-development"
+  deploy_production: null
+guards:
+  production_requires_issue_approval: true
+  database_write_requires_explicit_authority: true
+execution:
+  deploy_gate_command: "node projects/naia-land/scripts/project-ops.mjs deploy-gate"
+  artifact:
+    build_from: committed_revision
+    intake_scan_command: "node projects/naia-land/scripts/project-ops.mjs intake-scan"
+  propagation:
+    development:
+      reload_command: "node projects/naia-land/scripts/project-ops.mjs reload development"
+      cache_invalidation_command: "node projects/naia-land/scripts/project-ops.mjs invalidate-cache development"
+      serving_revision_proof_command: "node projects/naia-land/scripts/project-ops.mjs prove-revision development"
+    production:
+      reload_command: null
+      cache_invalidation_command: null
+      serving_revision_proof_command: null
+  verification:
+    command: "node projects/naia-land/scripts/project-ops.mjs verify development"
+    required_strings: [runtime_configured]
+    consecutive_passes: 2
+  rollback:
+    development: "node projects/naia-land/scripts/project-ops.mjs rollback development"
+    production: null
+  concurrency:
+    lease_file: .runtime/naia-land-mutation-lease.json
+    shared_targets: [development]
+  drift_check_command: "node projects/naia-land/scripts/project-ops.mjs drift-check development"
+tiers:
+  development:
+    url: runtime_configured
+    source_revision_origin: integration_branch
+    database: naia_development_runtime_configuration
+    deployable_by: [integrator]
+    reachable: true
+  production:
+    url: runtime_configured
+    source_revision_origin: approved_revision_only
+    database: never_store_credentials_here
+    deployable_by: [release_owner]
+    reachable: false
