@@ -19,6 +19,13 @@ routing:
     unresolved_behavior: fail_closed_and_request_registration
 behavior:
   mention_required_in_shared_channel: true
+  # 확인을 부탁하면서 대상을 적지 않으면 아무도 자기 일로 받지 않는다.
+  # 끝난 일이 아무도 소유하지 않은 확인만 기다리며 멈춘다.
+  address_confirmation_requests: true
+  confirmation_request_fields: [who, what, where_exactly, where_to_report_back, why_i_could_not_check]
+  # operator reply 경로는 멘션을 억제한다. <@id> 는 표시만 되고 알림이 가지 않으므로
+  # 이름을 평문으로 함께 적는다.
+  mention_does_not_notify_on_operator_reply: true
   coding_runs_in_ssh_workspace: true
   discord_may_not_execute_without_issue: [code_change, merge, deployment, database_change]
 security:
