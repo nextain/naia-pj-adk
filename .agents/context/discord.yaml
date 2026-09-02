@@ -28,6 +28,16 @@ behavior:
   mention_does_not_notify_on_operator_reply: true
   coding_runs_in_ssh_workspace: true
   discord_may_not_execute_without_issue: [code_change, merge, deployment, database_change]
+  # 승인 게이트는 검토 없는 변경을 막으려는 것이지 복구를 막으려는 것이 아니다.
+  # 2026-09-01: 롤백이 일반 배포와 같은 승인 뒤에 묶여 있어, 사이트가 죽은 채로
+  # 사람의 승인을 기다렸다. 게이트가 정확히 가장 필요한 행동을 막았다.
+  incident_overrides_approval: true
+  incident_signals: [five_xx, empty_body_on_a_page_that_had_one]
+  act_without_approval_during_incident: [rollback, container_restart, cache_reload]
+  incident_order: recover_first_then_diagnose
+  # 한 번에 하나만 처리하면 재촉이 앞 작업 뒤에 줄을 선다. 재촉조차 막히므로
+  # 재촉할수록 줄만 길어진다. 2026-09-01 에 다섯 건이 그렇게 묶였다.
+  concurrency_must_exceed_one: true
 security:
   tracked_registry: schema_and_placeholders_only
   runtime_registry: ignored

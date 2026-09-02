@@ -41,3 +41,39 @@ rules:
   - all_state_changes_are_recorded_in_issue
   - failed_validation_returns_to_branch_active
   - emergency_changes_still_require_issue_and_post_action_evidence
+
+# Divergence is what these states are for. A workflow that records every
+# transition still fails if the running system is not what the branch says.
+divergence:
+  # Observed 2026-08-31: production ran a commit from sixteen days earlier with
+  # thirty hand-edited files on top. Among them were the board controller and
+  # the MySQL TLS driver. The next deploy from the integration branch would have
+  # erased all of it, which is why the originating issue had to be reopened.
+  #
+  # The cause was not carelessness. Every deploy path was broken: the staging
+  # step pointed at a host that did not exist, the production step pointed at a
+  # decommissioned cloud, and neither server could fetch from the remote. Hand
+  # editing production was the only route left open.
+  invariant: the_running_revision_is_reachable_from_the_integration_branch
+  detect:
+    - compare_running_revision_to_integration_branch
+    - list_uncommitted_files_on_the_deploy_target
+  when_production_only_change_exists:
+    - land_it_on_the_integration_branch_first
+    - then_redeploy_through_the_normal_path
+    - never_let_a_deploy_silently_overwrite_it
+  emergency_hand_edit:
+    allowed_when: service_is_down_and_no_other_route_exists
+    obligation: land_the_same_change_on_the_integration_branch_the_same_day
+    why: a production-only fix is a scheduled outage for the next deploy
+
+# A change that exists only in a local branch has not been delivered.
+delivery:
+  # Observed 2026-09-01: a fix for a reported bug sat on a local branch for four
+  # days. It was written, committed, and never pushed, so the reporter saw no
+  # change at all and kept asking. The work looked done from inside and was
+  # invisible from outside.
+  not_delivered_until: pushed_to_remote_and_deployed_to_the_target
+  rejects:
+    - local_branch_as_completion
+    - commit_sha_without_a_reachable_remote_ref

@@ -25,8 +25,75 @@ deploy_gate:
       why: a deploy identical to the integration branch hides a failed merge
     - name: actor_is_authorized_for_target
       why: shared and production targets are role-gated, not convention-gated
+    - name: staging_precedes_production
+      applies_to: production
+      why: >
+        production may only receive a revision that a staging target already
+        serves. Observed 2026-09-01: production ran a commit from sixteen days
+        earlier with thirty uncommitted files on top, because production deploy
+        did not require staging and the staging path in the deploy script
+        pointed at a host that no longer existed. The only remaining route was
+        editing production by hand, and the next deploy would have erased it.
+    - name: staging_is_reachable
+      applies_to: production
+      why: >
+        a staging target that cannot be opened is not a check. Observed
+        2026-09-01: staging had zero requests for twelve days because its
+        domain redirected to production, so nobody could see that it had been
+        broken the whole time. Confirm staging answers with a body before
+        treating a staging pass as evidence.
   failure_behavior: refuse_without_side_effects
   refusal_must_name: [failed_precondition, how_to_satisfy_it]
+
+verification:
+  # A deploy is verified by what the site returns, not by the deploy command
+  # exiting zero.
+  rejects:
+    - status_code_only
+    - deploy_script_exit_code_as_proof
+    - single_page_sampled
+  requires:
+    - name: body_assertion
+      why: >
+        Observed 2026-07-13: the site held HTTP 200 for ten hours while serving
+        a 495-byte error page. Status code alone cannot see this. Assert body
+        size and title.
+    - name: empty_body_is_failure
+      why: a 200 with an empty body is the shape most outages take here
+    - name: two_unlike_surfaces
+      why: >
+        Observed 2026-09-02: one portal login screen rendered on staging, so the
+        change was treated as verified. Church sites were returning zero bytes at
+        the same moment. Sample surfaces that fail for different reasons.
+    - name: baseline_before_change
+      why: >
+        an after-value alone cannot tell you whether it is correct. Record the
+        same measurements immediately before the change and compare.
+
+incident_response:
+  # Approval gates exist to stop unreviewed change. They must not stop recovery.
+  #
+  # Observed 2026-09-01: rollback sat behind the same approval as ordinary
+  # deploys, so a live outage waited for a human while the agent held still.
+  when: service_is_down
+  signals: [five_xx, empty_body_on_a_page_that_had_one]
+  act_without_approval:
+    - rollback_to_previous_revision
+    - container_restart
+    - cache_or_opcache_reload
+  order: recover_first_then_diagnose
+  before_discarding_state: back_up_what_is_being_replaced
+  report: after_recovery
+
+post_deploy_signals:
+  # Sending a signal to the wrong process takes the site down more reliably
+  # than a bad commit.
+  #
+  # Observed 2026-09-01: an OPcache reload sent USR2 to PID 1, which was
+  # apache2ctl rather than php-fpm. Every CI site returned 500 and the portal
+  # served an empty body. The deployed code was fine.
+  rule: resolve_the_target_by_name_not_by_assumed_pid
+  on_not_found: say_so_and_fail_loudly
 
 artifact:
   # Build from a committed revision, not from whatever is on disk.
