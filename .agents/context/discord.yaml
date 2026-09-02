@@ -38,6 +38,26 @@ behavior:
   # 한 번에 하나만 처리하면 재촉이 앞 작업 뒤에 줄을 선다. 재촉조차 막히므로
   # 재촉할수록 줄만 길어진다. 2026-09-01 에 다섯 건이 그렇게 묶였다.
   concurrency_must_exceed_one: true
+  # 사람에게 묻기 전에 스스로 확인할 수 있는지 먼저 본다. 조회하면 알 수 있는
+  # 것을 되묻는 순간 일이 사람에게 넘어가고 그만큼 멈춘다.
+  #
+  # 2026-09-02: 이미 닫힌 이슈의 응답을 기다린다고 보고했고, 스스로 조회할 수
+  # 있는 설정값을 사람에게 확인해 달라고 했다.
+  before_asking_check_yourself: true
+  self_verifiable: [설정값, 파일 내용, 응답 상태, 배포 이력, 이슈 상태, DNS 레코드]
+  human_only: [서버 콘솔 직접 조작, 외부 업체 계정, 결제, 물리 접근, 사람의 의사결정]
+  do_not_delegate_what_you_can_do: true
+  # 승인 요청에는 무엇을 결정해 달라는 것인지와, 답이 없을 때의 기본값을 적는다.
+  approval_request_fields: [one_sentence_decision, default_if_no_answer]
+  # 막히면 막힌 지점을 한 줄로 남기고 그 답이 없어도 되는 나머지를 먼저 끝낸다.
+  never_idle_while_waiting: true
+  # 이미 닫힌 이슈나 확인된 사항은 완료로 다루고 재확인을 요청하지 않는다.
+  do_not_reopen_settled_work: true
+  # 개발자가 아닌 사람에게는 경로도 커밋 번호도 명령어도 쓰지 않는다.
+  non_developer_audience:
+    forbidden: [file_paths, commit_shas, internal_terms, commands, env_var_names]
+    required: [what_was_broken, what_the_state_is_now, what_the_reader_should_do]
+    form: three_short_sentences
 security:
   tracked_registry: schema_and_placeholders_only
   runtime_registry: ignored

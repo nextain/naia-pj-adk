@@ -267,3 +267,73 @@ completion:
     An agent reports what it observed. Whether that satisfies the request is a
     human judgment, and recording it as such is what makes the record usable
     later.
+
+incident_severity:
+  # 승인을 구하는 일 자체가 비용이다. 서비스가 죽었는데 승인을 기다리면 그
+  # 시간만큼 사용자가 못 쓴다. 반대로 되돌리기 어려운 변경을 승인 없이 지르면
+  # 장애가 더 커진다. 급한 것과 위험한 것은 다르므로 축을 나눈다.
+  #
+  # 2026-09-02: 명백한 장애에까지 승인을 요청해 복구가 지연됐다.
+  axes:
+    business_impact:
+      asks: what_the_user_cannot_do_right_now
+      high: cannot_reach_service_or_use_core_function
+      medium: degraded_but_a_workaround_exists
+      low: user_does_not_notice
+      excludes: the_cost_of_fixing_it
+    system_risk:
+      asks: how_hard_the_fix_itself_is_to_undo
+      high: data_changes_or_hard_to_reverse
+      medium: reversible_but_causes_interruption
+      low: one_setting_backed_up_and_instantly_reversible
+      excludes: how_severe_the_outage_is
+  decision:
+    - when: business_impact_high
+      then: act_without_approval_and_report_after
+    - when: system_risk_low
+      then: act_without_approval_regardless_of_impact
+    - when: system_risk_high
+      then: write_the_rollback_plan_first_then_request_approval_with_it
+    - otherwise: follow_the_normal_order_staging_then_production
+  rollback_plan_fields: [what_was_backed_up, exact_command_to_revert, what_to_verify_after]
+  self_challenge:
+    # 등급은 자기가 매기고 자기가 쓴다. 편한 쪽으로 기운다.
+    business_impact_low: "이 상태로 하루를 더 두면 누가 무엇을 못 하는지 적어 본다. 적히면 낮음이 아니다"
+    system_risk_low: "백업 경로를 실제로 댈 수 있는지 확인한다. 대지 못하면 낮음이 아니다"
+    both_low: "왜 이것이 장애로 올라왔는지 설명해 본다. 설명이 안 되면 다시 본다"
+    on_fail: raise_the_grade
+    once_raised: never_lowered
+
+health_verification:
+  # 응답 코드만 보는 감시는 겉으로 정상인 고장을 한 번도 잡지 못한다.
+  #
+  # 2026-08-26 부터 6일 넘게 네 개 앱이 데이터베이스에 붙지 못한 채로
+  # 운영됐다. 서버는 HTTP 200 을 계속 돌려주었고 본문만 비어 있었다.
+  # 운영 모드라 오류 화면이 꺼져 있었고 log_errors 가 Off 라 오류가
+  # 어디에도 남지 않았다. 사람의 신고로 처음 발견됐다.
+  status_code: not_used_as_a_verdict
+  rules:
+    - two_hundred_with_an_empty_body_is_a_failure
+    - assert_that_required_content_is_actually_present_by_string
+    - a_path_that_returns_a_verdict_must_return_one_empty_is_a_failure
+    - connect_to_the_database_with_the_config_the_app_itself_uses
+    - check_at_least_two_screens_of_different_kinds
+  alerting:
+    # 발견이 고장으로 읽히면 아무도 보지 않는다.
+    never: leave_failure_only_as_a_unit_start_failure
+    verify_by: deliberately_failing_it_and_confirming_the_alert_arrives
+    also_verify: on_failure_wiring_fires_automatically
+  timer:
+    use: on_calendar
+    avoid: on_boot_sec
+    why: losing_the_reference_point_stops_it_forever
+
+defect_origin:
+  # 같은 결함이 여러 파일에 복사돼 있으면 발견되는 곳마다 새 이슈가 된다.
+  # 원인이 같은 것이 아니라 같은 실수가 흩어진 것이다.
+  #
+  # 2026-09-02: 업로드 경로 계산 결함이 세 컨트롤러에 각각 있었고,
+  # 세 개의 이슈로 따로 올라와 따로 고쳐졌다. 남은 곳에서 또 재발했다.
+  on_fix: search_every_occurrence_of_the_same_shape_first
+  when_repeated_three_times: extract_into_one_shared_function
+  fixing_only_where_reported: guarantees_recurrence
