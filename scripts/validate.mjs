@@ -51,6 +51,11 @@ const required = [
   '.agents/context/development-method.yaml',
   '.agents/context/discord.yaml',
   'projects/_template/project.yaml',
+  'docs/WORKSPACE.ko.md',
+  'data-branch/README.md',
+  'data-branch/_template/AGENTS.md',
+  'data-branch/_template/CLAUDE.md',
+  'ops/gateway/dcg.sh',
   'scripts/lib/yaml-lite.mjs',
 ];
 for (const file of required) {
@@ -62,6 +67,10 @@ for (const file of required) {
 const canonical = read('AGENTS.md');
 for (const mirror of ['CLAUDE.md', 'GEMINI.md']) {
   if (canonical !== read(mirror)) throw new Error(`AGENTS.md and ${mirror} must be byte-identical`);
+}
+const branchTemplate = read('data-branch/_template/AGENTS.md');
+if (branchTemplate !== read('data-branch/_template/CLAUDE.md')) {
+  throw new Error('data-branch/_template/AGENTS.md and CLAUDE.md must be byte-identical');
 }
 
 // CODEX.md is a pointer, not a byte mirror, so the check above cannot cover it.

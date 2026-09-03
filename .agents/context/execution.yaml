@@ -122,8 +122,10 @@ propagation:
     files change. Skipping this step produces a deploy that reports success and
     changes nothing.
 
-verification:
-  # What counts as a pass. Field names like "validation" are not definitions.
+pass_gate:
+  # What counts as a pass. Nested under a second `verification` key the
+  # contract parser rejected as a duplicate. Field names like "validation"
+  # are not definitions.
   minimum_assertions:
     - status_code
     - minimum_body_size

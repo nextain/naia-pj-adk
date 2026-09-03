@@ -10,6 +10,9 @@
 - 병합, 배포, 데이터베이스 변경 권한은 대화 도구가 아니라 프로젝트 정책으로 결정합니다.
 - 프로젝트마다 Discord 앱과 게이트웨이는 하나만 운영합니다.
 - 새 프로젝트는 `projects/_template/`을 복사해 프로젝트별 사실과 권한만 채웁니다.
+제품 소스 clone은 `checkouts/`에 두고 `projects/`에는 어댑터만 둡니다. 브랜치마다
+다른 에이전트 규칙은 `data-branch/`입니다. 레이아웃 정본은
+[작업공간 레이아웃](docs/WORKSPACE.ko.md)입니다.
 
 첫 실증 대상은 `onmam-dev`이며, 검증 후 `naia-comm` 같은 팀 프로젝트로 확장합니다. 실증 프로젝트의 계정, 서버, 고객 정보, 자격 증명은 이 저장소에 넣지 않습니다.
 
@@ -30,6 +33,32 @@
 작업을 정의하는 앞 단계는 [`development-method.yaml`](.agents/context/development-method.yaml) 이 담습니다. 용어에서 시작해 UC 와 FE 로 내려가고, 큰 변경은 배정 전에 분류합니다.
 
 이 저장소는 비공개입니다. 무엇이 충족돼야 공개할 수 있는지는 [공개 준비 상태](docs/OPENING.ko.md)에 적혀 있습니다.
+
+## 디렉터리
+
+| 경로 | 추적 | 역할 |
+|------|------|------|
+| `projects/` | 예 | 프로젝트 어댑터 |
+| `checkouts/` | 아니오 | 제품 git clone |
+| `data-branch/` | 예 | git 브랜치별 `AGENTS.md`=`CLAUDE.md` |
+| `ops/gateway/` | 예 | 게이트웨이 감시. 운영 CLI는 `dcg.sh` |
+
+다른 머신:
+
+```bash
+git clone <this-repo> ~/naia-pj-adk
+cd ~/naia-pj-adk
+npm test
+# 제품 소스는 여기 clone 하지 않는다. checkouts/ 에 둔다.
+```
+
+운영 진입점(프로젝트 게이트웨이가 있을 때):
+
+```bash
+export PROJECT_GATEWAY_CTL=/path/to/project-gateway-ctl.sh
+./ops/gateway/dcg.sh status
+./ops/gateway/dcg.sh jobs --active
+```
 
 ## 검증
 
