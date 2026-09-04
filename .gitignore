@@ -8,6 +8,9 @@ coverage/
 *.log
 .DS_Store
 
+# 제품 git clone. 어댑터(projects/)와 섞지 않는다.
+/checkouts/
+
 # Harness and session state written by AI tooling into whatever directory it
 # treats as a project root. These describe a machine and a moment, not the work.
 .agents/session-contracts/

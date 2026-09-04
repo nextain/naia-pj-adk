@@ -51,6 +51,11 @@ const required = [
   '.agents/context/development-method.yaml',
   '.agents/context/discord.yaml',
   'projects/_template/project.yaml',
+  'docs/WORKSPACE.ko.md',
+  'data-branch/README.md',
+  'data-branch/_template/AGENTS.md',
+  'data-branch/_template/CLAUDE.md',
+  'ops/gateway/dcg.sh',
   'scripts/lib/yaml-lite.mjs',
 ];
 for (const file of required) {
@@ -62,6 +67,10 @@ for (const file of required) {
 const canonical = read('AGENTS.md');
 for (const mirror of ['CLAUDE.md', 'GEMINI.md']) {
   if (canonical !== read(mirror)) throw new Error(`AGENTS.md and ${mirror} must be byte-identical`);
+}
+const branchTemplate = read('data-branch/_template/AGENTS.md');
+if (branchTemplate !== read('data-branch/_template/CLAUDE.md')) {
+  throw new Error('data-branch/_template/AGENTS.md and CLAUDE.md must be byte-identical');
 }
 
 // CODEX.md is a pointer, not a byte mirror, so the check above cannot cover it.
@@ -100,7 +109,34 @@ const execution = contract('.agents/context/execution.yaml');
 requireKeys(execution, [
   'deploy_gate', 'artifact', 'propagation', 'verification', 'rollback',
   'concurrency', 'drift', 'watchdog', 'environment_tiers', 'completion',
+  'ops_profile',
 ], 'execution contract');
+if (at(execution, 'ops_profile', 'stall_forbidden') !== true) {
+  throw new Error('execution contract must forbid stalling a thread to wait for a safe read or a non-critical user-visible deploy');
+}
+if (!Array.isArray(at(execution, 'ops_profile', 'proceed_without_approval'))
+    || at(execution, 'ops_profile', 'proceed_without_approval').length === 0) {
+  throw new Error('execution contract must name what may proceed without approval');
+}
+if (!Array.isArray(at(execution, 'ops_profile', 'requires_approval'))
+    || at(execution, 'ops_profile', 'requires_approval').length === 0) {
+  throw new Error('execution contract must name what still requires approval');
+}
+if (at(execution, 'ops_profile', 'attention_routing', 'bot_work_must_not_land_on_owner') !== true) {
+  throw new Error('execution contract must keep bot work off the owner inbox');
+}
+if (at(execution, 'ops_profile', 'attention_routing', 're_ask_fallback_to_owner') !== false) {
+  throw new Error('execution contract must not default unanswered asks to the owner');
+}
+if (at(execution, 'ops_profile', 'attention_routing', 'collaborator_ok_on_non_owner_gated') !== true) {
+  throw new Error('execution contract must not void a collaborator ok on work that does not need the owner');
+}
+if (at(execution, 'watchdog', 'pending_human_response', 're_ask_fallback') !== 'none') {
+  throw new Error('execution contract must not fall back a re-ask to a default owner');
+}
+if (at(execution, 'watchdog', 'pending_human_response', 'our_turn') !== 'dispatch_not_escalate_to_owner') {
+  throw new Error('execution contract must dispatch owed bot work instead of paging the owner');
+}
 if (at(execution, 'completion', 'ai_may_not_declare_completion') !== true) {
   throw new Error('execution contract must keep completion a human decision');
 }
@@ -167,9 +203,12 @@ if (visibility === 'private') {
 // --- project template and activated adapters --------------------------------
 
 const template = contract('projects/_template/project.yaml');
-requireKeys(template, ['project', 'workspace', 'roles', 'discord', 'commands', 'guards', 'execution', 'tiers'], 'project template');
+requireKeys(template, ['project', 'workspace', 'roles', 'discord', 'commands', 'guards', 'execution', 'tiers', 'ops_profile'], 'project template');
 if (at(template, 'guards', 'production_requires_issue_approval') !== true) {
   throw new Error('project template must require issue approval for production');
+}
+if (at(template, 'ops_profile', 'stall_forbidden') !== true) {
+  throw new Error('project template must forbid stalling a thread on a bounded production read');
 }
 
 // Every execution command an adapter must answer. Checking only three of them
@@ -235,8 +274,14 @@ for (const entry of fs.readdirSync(projectsDir, { withFileTypes: true })) {
         throw new Error(`adapter ${entry.name} enables Discord but leaves discord.contact_window.${key} unset`);
       }
     }
-    if (at(adapter, 'discord', 'default_responder_alias') == null) {
-      throw new Error(`adapter ${entry.name} enables Discord but names nobody to ask by default`);
+    if (at(adapter, 'discord', 'default_responder_alias') === undefined) {
+      throw new Error(`adapter ${entry.name} enables Discord but omits discord.default_responder_alias (null means no default)`);
+    }
+    if (at(adapter, 'ops_profile', 'stall_forbidden') !== true) {
+      throw new Error(`adapter ${entry.name} enables Discord but does not forbid stalling on a bounded production read`);
+    }
+    if (at(adapter, 'ops_profile', 'attention_routing', 'bot_work_must_not_land_on_owner') !== true) {
+      throw new Error(`adapter ${entry.name} enables Discord but still dumps bot work on the owner`);
     }
   }
 
