@@ -128,6 +128,9 @@ if (at(execution, 'ops_profile', 'attention_routing', 'bot_work_must_not_land_on
 if (at(execution, 'ops_profile', 'attention_routing', 're_ask_fallback_to_owner') !== false) {
   throw new Error('execution contract must not default unanswered asks to the owner');
 }
+if (at(execution, 'ops_profile', 'attention_routing', 'collaborator_ok_on_non_owner_gated') !== true) {
+  throw new Error('execution contract must not void a collaborator ok on work that does not need the owner');
+}
 if (at(execution, 'watchdog', 'pending_human_response', 're_ask_fallback') !== 'none') {
   throw new Error('execution contract must not fall back a re-ask to a default owner');
 }
