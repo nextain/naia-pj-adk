@@ -30,6 +30,9 @@ commands:
 guards:
   production_requires_issue_approval: true
   database_write_requires_explicit_authority: true
+ops_profile:
+  stall_forbidden: true
+  inherit: execution.yaml
 execution:
   deploy_gate_command: "bash /opt/aipol/workspaces/aipol-lab/internal/operations/aipol-dev/scripts/deploy-gate.sh"
   artifact:

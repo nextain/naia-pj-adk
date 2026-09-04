@@ -34,6 +34,11 @@ commands:
 guards:
   production_requires_issue_approval: true
   database_write_requires_explicit_authority: true
+ops_profile:
+  stall_forbidden: true
+  inherit: execution.yaml
+  # A project may narrow proceed_without_approval. It may not stall a thread
+  # on a bounded production read.
 
 execution:
   # Every command here must exit non-zero when its condition is not met.

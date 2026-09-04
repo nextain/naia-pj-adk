@@ -2,7 +2,7 @@
 
 `WORKFLOW.ko.md` 는 누가 무엇을 하는지 정합니다. 이 문서는 **기계가 무엇을 거절해야 하는지**를 정합니다. 둘은 다른 문서입니다. 절차만 있는 프로젝트는, 잘 쓰인 기록 한 장으로 망가진 배포를 통과시킬 수 있습니다.
 
-계약 원문은 `.agents/context/execution.yaml` 이고, 프로젝트가 채워야 할 자리는 `projects/<프로젝트>/project.yaml` 의 `execution` 과 `tiers` 입니다.
+계약 원문은 `.agents/context/execution.yaml` 이고, 프로젝트가 채워야 할 자리는 `projects/<프로젝트>/project.yaml` 의 `execution` 과 `tiers` 입니다. 운영 읽기·장애 배포를 승인 없이 해도 되는지는 같은 파일의 `ops_profile` 과 [운영 프로파일](OPS-PROFILE.ko.md)이 정합니다.
 
 ## 이 계약이 존재하는 이유
 

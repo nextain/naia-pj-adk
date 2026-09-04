@@ -109,7 +109,19 @@ const execution = contract('.agents/context/execution.yaml');
 requireKeys(execution, [
   'deploy_gate', 'artifact', 'propagation', 'verification', 'rollback',
   'concurrency', 'drift', 'watchdog', 'environment_tiers', 'completion',
+  'ops_profile',
 ], 'execution contract');
+if (at(execution, 'ops_profile', 'stall_forbidden') !== true) {
+  throw new Error('execution contract must forbid stalling a thread to wait for a safe read or a non-critical user-visible deploy');
+}
+if (!Array.isArray(at(execution, 'ops_profile', 'proceed_without_approval'))
+    || at(execution, 'ops_profile', 'proceed_without_approval').length === 0) {
+  throw new Error('execution contract must name what may proceed without approval');
+}
+if (!Array.isArray(at(execution, 'ops_profile', 'requires_approval'))
+    || at(execution, 'ops_profile', 'requires_approval').length === 0) {
+  throw new Error('execution contract must name what still requires approval');
+}
 if (at(execution, 'completion', 'ai_may_not_declare_completion') !== true) {
   throw new Error('execution contract must keep completion a human decision');
 }
@@ -176,9 +188,12 @@ if (visibility === 'private') {
 // --- project template and activated adapters --------------------------------
 
 const template = contract('projects/_template/project.yaml');
-requireKeys(template, ['project', 'workspace', 'roles', 'discord', 'commands', 'guards', 'execution', 'tiers'], 'project template');
+requireKeys(template, ['project', 'workspace', 'roles', 'discord', 'commands', 'guards', 'execution', 'tiers', 'ops_profile'], 'project template');
 if (at(template, 'guards', 'production_requires_issue_approval') !== true) {
   throw new Error('project template must require issue approval for production');
+}
+if (at(template, 'ops_profile', 'stall_forbidden') !== true) {
+  throw new Error('project template must forbid stalling a thread on a bounded production read');
 }
 
 // Every execution command an adapter must answer. Checking only three of them
@@ -246,6 +261,9 @@ for (const entry of fs.readdirSync(projectsDir, { withFileTypes: true })) {
     }
     if (at(adapter, 'discord', 'default_responder_alias') == null) {
       throw new Error(`adapter ${entry.name} enables Discord but names nobody to ask by default`);
+    }
+    if (at(adapter, 'ops_profile', 'stall_forbidden') !== true) {
+      throw new Error(`adapter ${entry.name} enables Discord but does not forbid stalling on a bounded production read`);
     }
   }
 

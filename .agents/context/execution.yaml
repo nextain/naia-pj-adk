@@ -75,6 +75,9 @@ incident_response:
   #
   # Observed 2026-09-01: rollback sat behind the same approval as ordinary
   # deploys, so a live outage waited for a human while the agent held still.
+  # Observed 2026-09-04: Discord threads sat idle because a production *read*
+  # was treated as a production *change*, so churches waited while the bot
+  # asked for permission to open a public URL.
   when: service_is_down
   signals: [five_xx, empty_body_on_a_page_that_had_one]
   act_without_approval:
@@ -84,6 +87,39 @@ incident_response:
   order: recover_first_then_diagnose
   before_discarding_state: back_up_what_is_being_replaced
   report: after_recovery
+
+ops_profile:
+  # Who may act without a human, on a live system. Three axes, not one
+  # "production" flag. Mixing them is how a GET of one page waits for the same
+  # approval as dropping a table.
+  stall_forbidden: true
+  axes:
+    user_visible_impact: [high, medium, low]
+    system_risk: [high, medium, low]
+    traffic_risk: [high, medium, low]
+  proceed_without_approval:
+    - id: bounded_production_read
+      when:
+        traffic_risk: [low, medium]
+      do: read immediately; never stall a thread to ask for a read
+    - id: user_visible_noncritical_deploy
+      when:
+        user_visible_impact: [high, medium]
+        system_risk: [low, medium]
+        deploy_needed: true
+      do: deploy with the project's formal script, then report
+      requires: [rollback_artifact_already_exists, issue_record]
+  requires_approval:
+    - id: high_traffic_read
+      when:
+        traffic_risk: high
+    - id: high_system_risk
+      when:
+        system_risk: high
+    - id: human_only_decision
+    - id: deploy_without_rollback_artifact
+  never_infer_from_chat: true
+  report_unattended_action_on: [issue, thread]
 
 post_deploy_signals:
   # Sending a signal to the wrong process takes the site down more reliably

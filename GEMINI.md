@@ -31,6 +31,7 @@ Before acting, read:
 - Deployment is incomplete until the new revision is proven to be serving. Writing files, reloading a process, and taking effect are three different events.
 - A pass means the asserted body content appeared twice in a row and the checking process exited zero. A status code alone is not a pass.
 - Rollback must already exist as an artifact before the change begins.
+- Do not stall a thread to ask permission for a production read that cannot take the service down with traffic, or for a user-visible incident deploy whose system risk is not high. Judgment lives in `execution.yaml` `ops_profile`. High-traffic reads, irreversible change, and human-only decisions still need approval.
 
 ## Project boundary
 
