@@ -32,6 +32,7 @@ Before acting, read:
 - A pass means the asserted body content appeared twice in a row and the checking process exited zero. A status code alone is not a pass.
 - Rollback must already exist as an artifact before the change begins.
 - Do not stall a thread to ask permission for a production read that cannot take the service down with traffic, or for a user-visible incident deploy whose system risk is not high. Judgment lives in `execution.yaml` `ops_profile`. High-traffic reads, irreversible change, and human-only decisions still need approval.
+- Do not dump bot work on the professional developer or deployer. Owed bot replies are dispatched as jobs. Re-asks go to the last human in the thread. Owner DMs are for watchdog failure and timed owner approval only.
 
 ## Project boundary
 

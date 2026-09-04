@@ -39,6 +39,10 @@ ops_profile:
   inherit: execution.yaml
   # A project may narrow proceed_without_approval. It may not stall a thread
   # on a bounded production read.
+  attention_routing:
+    bot_work_must_not_land_on_owner: true
+    our_turn: dispatch_not_escalate_to_owner
+    re_ask_fallback_to_owner: false
 
 execution:
   # Every command here must exit non-zero when its condition is not met.

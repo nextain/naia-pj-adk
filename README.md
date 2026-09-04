@@ -28,7 +28,7 @@
 
 자세한 내용은 [운영 절차](docs/WORKFLOW.ko.md)와 [Discord 협업 설계](docs/DISCORD.ko.md)를 참고합니다.
 
-절차는 누가 무엇을 하는지 정하고, [실행 계약 운영 매뉴얼](docs/OPERATIONS.ko.md)은 기계가 무엇을 거절해야 하는지 정합니다. 운영 읽기와 사용자 인식 장애 배포를 승인 없이 해도 되는지는 [운영 프로파일](docs/OPS-PROFILE.ko.md)이 정합니다. 배포·검증·롤백을 붙이기 전에 후자를 먼저 읽습니다.
+절차는 누가 무엇을 하는지 정하고, [실행 계약 운영 매뉴얼](docs/OPERATIONS.ko.md)은 기계가 무엇을 거절해야 하는지 정합니다. 운영 읽기와 사용자 인식 장애 배포를 승인 없이 해도 되는지는 [운영 프로파일](docs/OPS-PROFILE.ko.md)이 정합니다. 봇 일을 전문 개발자·배포 담당자에게 몰지 않는 것도 그 문서입니다. 배포·검증·롤백을 붙이기 전에 후자를 먼저 읽습니다.
 
 작업을 정의하는 앞 단계는 [`development-method.yaml`](.agents/context/development-method.yaml) 이 담습니다. 용어에서 시작해 UC 와 FE 로 내려가고, 큰 변경은 배정 전에 분류합니다.
 

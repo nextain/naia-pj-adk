@@ -22,7 +22,8 @@ discord:
     days: [mon, tue, wed, thu, fri]
     start_hour: 10
     end_hour: 18
-  default_responder_alias: workspace_owner
+  # Empty: do not page the workspace owner for every unanswered thread.
+  default_responder_alias: null
 commands:
   validate: "python -m pytest -q"
   deploy_dev: "bash /opt/aipol/workspaces/aipol-lab/internal/operations/aipol-dev/scripts/deploy-dev.sh"
@@ -33,6 +34,10 @@ guards:
 ops_profile:
   stall_forbidden: true
   inherit: execution.yaml
+  attention_routing:
+    bot_work_must_not_land_on_owner: true
+    our_turn: dispatch_not_escalate_to_owner
+    re_ask_fallback_to_owner: false
 execution:
   deploy_gate_command: "bash /opt/aipol/workspaces/aipol-lab/internal/operations/aipol-dev/scripts/deploy-gate.sh"
   artifact:

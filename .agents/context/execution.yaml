@@ -120,6 +120,20 @@ ops_profile:
     - id: deploy_without_rollback_artifact
   never_infer_from_chat: true
   report_unattended_action_on: [issue, thread]
+  attention_routing:
+    # Observed 2026-09-04: a follow-up monitor treated bot silence as a human
+    # confirmation queue and DMed the release owner every five minutes. The
+    # owner was asked to answer work the bot already owed. Professional
+    # developers and deployers must not become the default inbox for bot work.
+    bot_work_must_not_land_on_owner: true
+    our_turn: dispatch_not_escalate_to_owner
+    re_ask_target: last_human_in_thread
+    re_ask_fallback_to_owner: false
+    skip_re_ask_when_work_is_queued: true
+    owner_direct_message_only:
+      - watchdog_malfunction
+      - awaiting_owner_approval_with_deadline
+    parked_owner_wait_is_not_a_nudge: true
 
 post_deploy_signals:
   # Sending a signal to the wrong process takes the site down more reliably
@@ -253,7 +267,10 @@ watchdog:
     re_ask_after_minutes: 60
     re_ask_where: the_thread_the_person_is_in
     re_ask_addresses: the_last_person_who_spoke_there
-    re_ask_fallback: project_declared_default_responder
+    re_ask_fallback: none
+    our_turn: dispatch_not_escalate_to_owner
+    skip_re_ask_when_work_is_queued: true
+    owner_direct_message_only: [malfunction, awaiting_owner_with_deadline]
     quoted_text_mentions: neutralized
     rationale_addressing: >
       A re-ask that names nobody notifies nobody. It sits in a thread the person

@@ -122,6 +122,18 @@ if (!Array.isArray(at(execution, 'ops_profile', 'requires_approval'))
     || at(execution, 'ops_profile', 'requires_approval').length === 0) {
   throw new Error('execution contract must name what still requires approval');
 }
+if (at(execution, 'ops_profile', 'attention_routing', 'bot_work_must_not_land_on_owner') !== true) {
+  throw new Error('execution contract must keep bot work off the owner inbox');
+}
+if (at(execution, 'ops_profile', 'attention_routing', 're_ask_fallback_to_owner') !== false) {
+  throw new Error('execution contract must not default unanswered asks to the owner');
+}
+if (at(execution, 'watchdog', 'pending_human_response', 're_ask_fallback') !== 'none') {
+  throw new Error('execution contract must not fall back a re-ask to a default owner');
+}
+if (at(execution, 'watchdog', 'pending_human_response', 'our_turn') !== 'dispatch_not_escalate_to_owner') {
+  throw new Error('execution contract must dispatch owed bot work instead of paging the owner');
+}
 if (at(execution, 'completion', 'ai_may_not_declare_completion') !== true) {
   throw new Error('execution contract must keep completion a human decision');
 }
@@ -259,11 +271,14 @@ for (const entry of fs.readdirSync(projectsDir, { withFileTypes: true })) {
         throw new Error(`adapter ${entry.name} enables Discord but leaves discord.contact_window.${key} unset`);
       }
     }
-    if (at(adapter, 'discord', 'default_responder_alias') == null) {
-      throw new Error(`adapter ${entry.name} enables Discord but names nobody to ask by default`);
+    if (at(adapter, 'discord', 'default_responder_alias') === undefined) {
+      throw new Error(`adapter ${entry.name} enables Discord but omits discord.default_responder_alias (null means no default)`);
     }
     if (at(adapter, 'ops_profile', 'stall_forbidden') !== true) {
       throw new Error(`adapter ${entry.name} enables Discord but does not forbid stalling on a bounded production read`);
+    }
+    if (at(adapter, 'ops_profile', 'attention_routing', 'bot_work_must_not_land_on_owner') !== true) {
+      throw new Error(`adapter ${entry.name} enables Discord but still dumps bot work on the owner`);
     }
   }
 
