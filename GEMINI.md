@@ -33,6 +33,7 @@ Before acting, read:
 - Rollback must already exist as an artifact before the change begins.
 - Do not stall a thread to ask permission for a production read that cannot take the service down with traffic, or for a user-visible incident deploy whose system risk is not high. Judgment lives in `execution.yaml` `ops_profile`. High-traffic reads, irreversible change, and human-only decisions still need approval.
 - Do not dump bot work on the professional developer or deployer. Owed bot replies are dispatched as jobs. Re-asks go to the last human in the thread. Owner DMs are for watchdog failure and timed owner approval only.
+- Re-asks go only inside `discord.contact_window`. Deferred asks do not spend the re-ask budget. An urgent flag does not open that window. Watchdog malfunction still alarms. Do not post synthetic probes, one-sample slowness, or canaries to the home channel, and do not reply to them; the whole team sees that channel.
 
 ## Project boundary
 

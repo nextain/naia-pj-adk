@@ -50,7 +50,15 @@ want "금 18시" "$(check 5 18)" "shut"
 want "토 12시" "$(check 6 12)" "shut"
 want "일 12시" "$(check 7 12)" "shut"
 want "무시 스위치" "$(GATEWAY_IGNORE_HOURS=1 check 6 3)" "open"
+# 재촉은 창과 같은 판정이다. 긴급 인자를 받지 않는다.
+want "재촉 월 09시" "$(FAKE_DOW=1 FAKE_HOUR=9; if nudge_may_send; then printf open; else printf shut; fi)" "shut"
+want "재촉 월 10시" "$(FAKE_DOW=1 FAKE_HOUR=10; if nudge_may_send; then printf open; else printf shut; fi)" "open"
 unset -f date
+
+echo "== 공용 채널 잡음 =="
+is_shared_channel_noise "카나리아 접수 실패: job control receipt deadline exceeded" && ok "카나리아는 잡음" || bad "카나리아는 잡음" "놓침"
+is_shared_channel_noise "[온맘 공개 페이지 응답 이상 감지] youngji:slow" && ok "단발 느림은 잡음" || bad "단발 느림은 잡음" "놓침"
+is_shared_channel_noise "#394 사진 업로드가 안 됩니다" && bad "사람 장애는 잡음이 아님" "오탐" || ok "사람 장애는 잡음이 아님"
 
 echo "== 인용문의 호출 무력화 =="
 # public-safety-allow: 스레드 멘션 무력화를 시험하는 가짜 Discord 식별자다. 숫자만 길어 카드번호처럼 보인다.

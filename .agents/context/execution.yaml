@@ -293,7 +293,7 @@ watchdog:
       schedule_source: project_adapter
       timezone_source: project_adapter
       outside_window: defer_without_counting
-      urgent_override: per_item_flag
+      urgent_override: false
       health_vocabulary: follow_the_watched_tools_own_terms
       rationale: >
         Alerting that something is broken and asking a person to confirm are
@@ -302,7 +302,8 @@ watchdog:
         night and on weekends does not make the answer arrive sooner; it teaches
         people to ignore the channel. Outside the window the ask is deferred
         without counting, because counting it spends the re-ask budget while
-        nobody could see it. Only an item marked urgent passes.
+        nobody could see it. An urgent flag must not open that door: a re-ask
+        marked urgent is still a re-ask.
     rationale: >
       A watchdog that only tells the operator is invisible to the person whose
       answer it needs. Two items waited more than a day while the only signal

@@ -79,6 +79,18 @@ within_contact_window() {
 	[ "$hour" -ge "$contact_window_start" ] && [ "$hour" -lt "$contact_window_end" ]
 }
 
+# 재촉을 지금 보내도 되는가. 창 안에서만 참이다. 긴급 표시로 우회하지 않는다.
+# 거짓이면 호출 측은 횟수를 올리지 말고 다음 창까지 미룬다.
+nudge_may_send() {
+	within_contact_window
+}
+
+# 공용 채널에 올리면 안 되는 글인가. 홈 채널은 팀 전원이 본다.
+is_shared_channel_noise() {
+	printf '%s' "${1:-}" | grep -qiE \
+		'카나리아 접수 실패|job control receipt|synthetic_probe|one.sample.slow|감시 정상화|공개 페이지 응답 이상|watchdog_self_test|onmam-gateway-response-check|media-resilience-synthetic'
+}
+
 # 남이 쓴 글을 인용하면 그 안의 호출 문법이 살아난다. 실증 프로젝트의 저장된 요약
 # 하나에 `@everyone` 이 있었고, 그대로 실렸다면 확인 요청 한 통이 서버 전체를
 # 부를 뻔했다. 보이는 모양은 두고 호출만 성립하지 않게 한다.

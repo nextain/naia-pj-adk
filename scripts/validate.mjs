@@ -137,6 +137,20 @@ if (at(execution, 'watchdog', 'pending_human_response', 're_ask_fallback') !== '
 if (at(execution, 'watchdog', 'pending_human_response', 'our_turn') !== 'dispatch_not_escalate_to_owner') {
   throw new Error('execution contract must dispatch owed bot work instead of paging the owner');
 }
+const discord = contract('.agents/context/discord.yaml');
+if (at(discord, 'gateway_monitoring', 'human_contact_window', 'urgent_override') !== false) {
+  throw new Error('discord contract must not let an urgent flag bypass the contact window');
+}
+if (at(discord, 'gateway_monitoring', 'human_contact_window', 'outside_window') !== 'defer_without_counting') {
+  throw new Error('discord contract must defer an out-of-hours ask without spending a re-ask');
+}
+if (!Array.isArray(at(discord, 'gateway_monitoring', 'shared_channel', 'do_not_post'))
+    || at(discord, 'gateway_monitoring', 'shared_channel', 'do_not_post').length === 0) {
+  throw new Error('discord contract must name what must not be posted to the home channel');
+}
+if (at(discord, 'gateway_monitoring', 'shared_channel', 'never_amplify') !== true) {
+  throw new Error('discord contract must not reply to synthetic home-channel noise');
+}
 if (at(execution, 'completion', 'ai_may_not_declare_completion') !== true) {
   throw new Error('execution contract must keep completion a human decision');
 }
@@ -158,6 +172,9 @@ if (typeof at(reAsk, 'max_re_asks') !== 'number') {
 const contactWindow = at(reAsk, 'contact_window');
 if (at(contactWindow, 'outside_window') !== 'defer_without_counting') {
   throw new Error('execution contract must defer an out-of-hours ask without spending a re-ask');
+}
+if (at(contactWindow, 'urgent_override') !== false) {
+  throw new Error('execution contract must not let an urgent flag bypass the contact window');
 }
 if (!Array.isArray(at(contactWindow, 'never_gated')) || at(contactWindow, 'never_gated').length === 0) {
   throw new Error('execution contract must name what a contact window never delays');

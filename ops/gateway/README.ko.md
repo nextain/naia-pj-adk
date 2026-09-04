@@ -49,8 +49,10 @@ if within_contact_window; then
 fi
 ```
 
-`within_contact_window` 가 거짓이면 **횟수를 세지 말고** 넘깁니다. 세어 버리면
+`nudge_may_send` / `within_contact_window` 가 거짓이면 **횟수를 세지 말고** 넘깁니다. 세어 버리면
 아무도 못 본 사이에 재촉 한도를 다 씁니다. 고장 알림은 이 판정을 거치지 않습니다.
+재촉은 긴급 표시로 창을 열지 않습니다. `is_shared_channel_noise` 가 참인 글은
+홈 채널에 올리지 않고 답하지도 않습니다.
 
 ## 확인
 

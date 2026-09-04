@@ -28,7 +28,7 @@
           "enum": ["new", "dispatched", "awaiting_user_verification", "awaiting_owner_approval", "blocked", "completed", "closed"]
         },
         "summary": { "type": "string", "description": "사람이 읽을 한 줄. 남이 쓴 글을 옮겼다면 인용문의 호출은 무력화한 뒤 내보낸다." },
-        "urgent": { "type": "boolean", "default": false, "description": "참이면 접촉 창 밖에서도 재촉한다." },
+        "urgent": { "type": "boolean", "default": false, "description": "창 안의 우선순위 표시. 접촉 창을 우회하지 않는다. 재촉은 업무시간에만 보낸다." },
         "threadId": { "type": "string", "description": "이 이슈의 스레드. 사라진 스레드 ID 를 남겨 두면 조회 404 가 감시기를 죽인다." },
         "threadIdDeleted": { "type": "string", "description": "스레드가 사라졌을 때 조회 대상에서 빼면서 기록만 남기는 자리." },
         "threadNote": { "type": "string" },

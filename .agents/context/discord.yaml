@@ -95,8 +95,16 @@ gateway_monitoring:
     schedule: project_local_business_hours   # 기본 월~금, 프로젝트가 시각을 정한다
     timezone_source: project_configuration   # 서버 시계(UTC)로 판정하지 않는다
     outside_window: defer_without_counting   # 횟수를 세지 않으므로 다음 창에 다시 온다
-    urgent_override: per_item_flag
+    urgent_override: false                   # 재촉은 표시가 있어도 창을 우회하지 않는다
     health_vocabulary: follow_the_gateways_own_terms  # unhealthy 만 고장으로 센다
+  shared_channel:
+    # 홈 채널은 팀 전원이 본다. 단발 느림·카나리아·자기점검 실패를 올리면
+    # 장애가 아닌데 전원이 깨진다. 2026-09-04: 한 사이트가 한 번 8초를 넘긴
+    # 점검과 옛 카나리아가 공용 채널과 DM을 채웠다.
+    audience: everyone_in_the_home_channel
+    do_not_post: [synthetic_probe, one_sample_slow, recovery_of_one_sample_slow, canary, watchdog_self_test]
+    do_not_reply_to: [synthetic_probe, canary, watchdog_self_test]
+    never_amplify: true
   signals:
     perfectly_regular_repeated_failure: suspect_never_succeeded
 audit:
