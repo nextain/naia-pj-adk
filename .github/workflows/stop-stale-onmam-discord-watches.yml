@@ -17,6 +17,17 @@ jobs:
           units='
             onmam-gateway-response-check.timer
             onmam-gateway-response-check.service
+            onmam-gateway-alive-check.timer
+            onmam-gateway-alive-check.service
+            onmam-gateway-channel-check.timer
+            onmam-gateway-channel-check.service
+            onmam-gateway-deaf-check.timer
+            onmam-gateway-deaf-check.service
+            onmam-gateway-deaf-alert.service
+            onmam-gateway-followup-monitor.timer
+            onmam-gateway-followup-monitor.service
+            onmam-gateway-bind-threads.timer
+            onmam-gateway-bind-threads.service
             naia-discord-sessions-71966723456a-supervisor.timer
             naia-discord-sessions-71966723456a-supervisor.service
             naia-discord-sessions-71966723456a.service
