@@ -89,21 +89,37 @@ gateway_monitoring:
     must_print_source_path: true              # seed 와 runtime 이 나뉘면 어느 쪽을 읽었는지 밝힌다
     deliberate_resolution_marker: closed_by   # 사람이 정리한 것은 불일치가 아니다
   human_contact_window:
-    # 사람에게 하는 요청과 고장 알림은 다르다. 요청만 시간으로 막는다.
-    applies_to: [thread_nudge, routine_reminder_dm]
-    never_gated: [malfunction, delivery_failure, owed_reply_to_a_waiting_person]
-    schedule: project_local_business_hours   # 기본 월~금, 프로젝트가 시각을 정한다
-    timezone_source: project_configuration   # 서버 시계(UTC)로 판정하지 않는다
-    outside_window: defer_without_counting   # 횟수를 세지 않으므로 다음 창에 다시 온다
-    urgent_override: false                   # 재촉은 표시가 있어도 창을 우회하지 않는다
-    health_vocabulary: follow_the_gateways_own_terms  # unhealthy 만 고장으로 센다
+    # 사람에게 가는 모든 알림이 창을 탄다. 예외는 아래 immediate 뿐이다.
+    # 2026-09-05: 프로브 실패를 malfunction 으로 넣어 창을 우회했고,
+    # 심야·주말 DM 이 담당자를 채웠다. 프로브는 창을 열지 않는다.
+    applies_to: [thread_nudge, routine_reminder_dm, helper_unit_failure, operator_notice]
+    never_gated: [persisted_user_visible, gateway_ws_dead, delivery_failure]
+    not_never_gated: [probe_false_positive, canary, one_sample_slow, bot_silence, watchdog_self_test]
+    schedule: project_local_business_hours
+    timezone_source: project_configuration
+    outside_window: defer_without_counting
+    urgent_override: false
+    health_vocabulary: follow_the_gateways_own_terms
+  notice:
+    # 승인 프로파일과 알림 정책은 다른 축이다. 구현: ops/gateway/notify-policy.sh
+    classify_before_send: true
+    urgencies: [silent, window, immediate]
+    silent: [synthetic_probe, one_sample_slow, recovery_of_one_sample, canary, watchdog_self_test, bot_silence, flap_recovery]
+    window: [thread_nudge, routine_reminder, helper_unit_failure]
+    immediate: [persisted_user_visible, gateway_ws_dead, delivery_failure]
+    flap:
+      fail_streak_before_incident: 2
+      recovery_only_if_incident_was_sent: true
+      one_sample_fail_then_pass: send_nothing
+    outbound_ledger:
+      required: true
+      fields: [time, process, dest, kind, urgency, result]
+      never_store: [token, message_body]
+    one_bot_many_senders: every_token_holder_uses_this_policy
   shared_channel:
-    # 홈 채널은 팀 전원이 본다. 단발 느림·카나리아·자기점검 실패를 올리면
-    # 장애가 아닌데 전원이 깨진다. 2026-09-04: 한 사이트가 한 번 8초를 넘긴
-    # 점검과 옛 카나리아가 공용 채널과 DM을 채웠다.
     audience: everyone_in_the_home_channel
-    do_not_post: [synthetic_probe, one_sample_slow, recovery_of_one_sample_slow, canary, watchdog_self_test]
-    do_not_reply_to: [synthetic_probe, canary, watchdog_self_test]
+    do_not_post: [synthetic_probe, one_sample_slow, recovery_of_one_sample_slow, canary, watchdog_self_test, bot_silence, flap_recovery, helper_unit_failure]
+    do_not_reply_to: [synthetic_probe, canary, watchdog_self_test, one_sample_slow, recovery_of_one_sample_slow]
     never_amplify: true
   signals:
     perfectly_regular_repeated_failure: suspect_never_succeeded

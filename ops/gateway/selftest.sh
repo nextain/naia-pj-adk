@@ -60,6 +60,41 @@ is_shared_channel_noise "카나리아 접수 실패: job control receipt deadlin
 is_shared_channel_noise "[온맘 공개 페이지 응답 이상 감지] youngji:slow" && ok "단발 느림은 잡음" || bad "단발 느림은 잡음" "놓침"
 is_shared_channel_noise "#394 사진 업로드가 안 됩니다" && bad "사람 장애는 잡음이 아님" "오탐" || ok "사람 장애는 잡음이 아님"
 
+echo "== 알림 급과 펄럭임 =="
+. "$here/notify-policy.sh"
+want "단발 느림은 silent" "$(classify_notice one_sample_slow)" "silent"
+want "정상화는 silent" "$(classify_notice recovery_of_one_sample)" "silent"
+want "카나리는 silent" "$(classify_notice canary)" "silent"
+want "침묵 프로브는 silent" "$(classify_notice bot_silence)" "silent"
+want "재촉은 window" "$(classify_notice thread_nudge)" "window"
+want "사용자 장애는 immediate" "$(classify_notice persisted_user_visible)" "immediate"
+want "소켓 사망은 immediate" "$(classify_notice gateway_ws_dead)" "immediate"
+( FAKE_DOW=6 FAKE_HOUR=12
+  date() { case "$*" in "+%u") printf '%s' "$FAKE_DOW";; "+%-H") printf '%s' "$FAKE_HOUR";; *) command date "$@";; esac; }
+  notice_may_send shared_channel one_sample_slow
+  want "공용 채널에 단발 느림 금지" "$?" "1"
+  notice_may_send owner_dm canary
+  want "담당자 DM 에 카나리 금지" "$?" "1"
+  notice_may_send owner_dm bot_silence
+  want "담당자 DM 에 침묵 프로브 금지" "$?" "1"
+  notice_may_send owner_dm gateway_ws_dead
+  want "소켓 사망 DM 은 토요에도" "$?" "0"
+  notice_may_send thread thread_nudge
+  want "토요 재촉 금지" "$?" "1"
+  notice_may_send thread persisted_user_visible
+  want "사용자 장애는 스레드에 토요에도" "$?" "0"
+  unset -f date
+)
+want "단발 실패는 알리지 않음" "$(flap_should_alert pass fail 1 0)" "none"
+want "연속 2회는 장애" "$(flap_should_alert fail fail 2 0)" "incident"
+want "그 다음 실패는 반복 안 함" "$(flap_should_alert fail fail 3 1)" "none"
+want "단발 뒤 통과는 정상화 없음" "$(flap_should_alert fail pass 0 0)" "none"
+want "알린 뒤에만 복구" "$(flap_should_alert fail pass 0 1)" "recovery"
+led="$tmp/ledger.log"
+NOTIFY_LEDGER="$led" notify_ledger_append shared_channel one_sample_slow silent suppressed testhost
+grep -q 'kind=one_sample_slow' "$led" && ok "원장에 종류를 남긴다" || bad "원장에 종류를 남긴다" "없음"
+grep -qiE 'token|Bot ' "$led" && bad "원장에 토큰 없음" "비밀값이 있다" || ok "원장에 토큰 없음"
+
 echo "== 인용문의 호출 무력화 =="
 # public-safety-allow: 스레드 멘션 무력화를 시험하는 가짜 Discord 식별자다. 숫자만 길어 카드번호처럼 보인다.
 # public-safety-allow: 멘션 무력화를 시험하는 가짜 Discord 식별자다. 숫자만 길어 카드번호처럼 보인다.

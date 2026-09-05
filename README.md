@@ -41,7 +41,7 @@
 | `projects/` | 예 | 프로젝트 어댑터 |
 | `checkouts/` | 아니오 | 제품 git clone |
 | `data-branch/` | 예 | git 브랜치별 `AGENTS.md`=`CLAUDE.md` |
-| `ops/gateway/` | 예 | 게이트웨이 감시. 운영 CLI는 `dcg.sh` |
+| `ops/gateway/` | 예 | 게이트웨이 감시·알림 급 판정. 운영 CLI는 `dcg.sh` |
 
 다른 머신:
 
