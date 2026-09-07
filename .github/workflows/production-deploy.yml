@@ -1,0 +1,27 @@
+name: production-deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Committed revision to inspect
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  production:
+    environment: production
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the approved revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 0
+      - name: Fail closed until a project deploy command is configured
+        run: |
+          echo "No production deployment is configured for the public example." >&2
+          exit 1

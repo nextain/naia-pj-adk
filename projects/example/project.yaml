@@ -1,0 +1,98 @@
+version: 1
+policy_contract_version: 1
+project:
+  id: example
+  repository: example-owner/example-project
+  issue_tracker: github
+  default_branch: main
+  integration_branch: main
+workspace:
+  ssh_home_pattern: "~/example-project"
+  branch_pattern: "issue/<number>-<short-name>"
+roles:
+  contributors: [contributor]
+  integrators: [integrator]
+  release_owners: [release_owner]
+team_policy:
+  authorization:
+    issue_required: true
+    chat_grants_authority: false
+    production_deploy_role: release_owner
+    database_write_requires_explicit_authority: true
+    issue_work_roles: [contributor, integrator, release_owner]
+  work_hours:
+    timezone: UTC
+    days: [mon, tue, wed, thu, fri]
+    start_hour: 9
+    end_hour: 17
+  approval:
+    production_deploy: required
+    high_system_risk: required
+    incident_rollback: without_approval
+  assignment:
+    issue_assignee_required: true
+    unanswered_thread_recipient: last_human_in_thread
+    default_responder_alias: null
+discord:
+  enabled: false
+  project_alias: example
+  bot_token_env: DISCORD_BOT_TOKEN
+  runtime_registry: .runtime/participants.json
+  contact_window:
+    timezone: UTC
+    days: [mon, tue, wed, thu, fri]
+    start_hour: 9
+    end_hour: 17
+  default_responder_alias: null
+commands:
+  validate: "node --test"
+  deploy_dev: null
+  deploy_production: null
+guards:
+  production_requires_issue_approval: true
+  database_write_requires_explicit_authority: true
+ops_profile:
+  stall_forbidden: true
+  inherit: execution.yaml
+  attention_routing:
+    bot_work_must_not_land_on_owner: true
+    our_turn: dispatch_not_escalate_to_owner
+    re_ask_fallback_to_owner: false
+execution:
+  deploy_gate_command: null
+  artifact:
+    build_from: committed_revision
+    intake_scan_command: null
+  propagation:
+    development:
+      reload_command: null
+      cache_invalidation_command: null
+      serving_revision_proof_command: null
+    production:
+      reload_command: null
+      cache_invalidation_command: null
+      serving_revision_proof_command: null
+  verification:
+    command: null
+    required_strings: []
+    consecutive_passes: 2
+  rollback:
+    development: null
+    production: null
+  concurrency:
+    lease_file: .runtime/mutation-lease.json
+    shared_targets: [development, production]
+  drift_check_command: null
+tiers:
+  development:
+    url: "https://example.invalid/development"
+    source_revision_origin: integration_branch
+    database: example_development_data
+    deployable_by: [integrator]
+    reachable: false
+  production:
+    url: "https://example.invalid/production"
+    source_revision_origin: approved_revision_only
+    database: example_production_data
+    deployable_by: [release_owner]
+    reachable: false

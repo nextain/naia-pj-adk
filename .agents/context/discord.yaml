@@ -2,12 +2,12 @@ version: 1
 topology:
   bot_per_project: 1
   gateway_consumers_per_token: 1
-  runtime_location: project_team_dev_server
+  runtime_location: project_team_runtime
   issue_thread_mapping: one_thread_per_github_issue
 identity:
   canonical_format: "[alias/project]"
   alias_source: ignored_runtime_registry
-  examples: ["[luke/onmam-dev]", "[dh/onmam-dev]"]
+  examples: ["[contributor/example]", "[integrator/example]"]
 routing:
   channel_thread:
     key: github_issue_number
@@ -29,20 +29,19 @@ behavior:
   coding_runs_in_ssh_workspace: true
   discord_may_not_execute_without_issue: [code_change, merge, deployment, database_change]
   # 승인 게이트는 검토 없는 변경을 막으려는 것이지 복구를 막으려는 것이 아니다.
-  # 2026-09-01: 롤백이 일반 배포와 같은 승인 뒤에 묶여 있어, 사이트가 죽은 채로
-  # 사람의 승인을 기다렸다. 게이트가 정확히 가장 필요한 행동을 막았다.
+  # 장애 복구를 일반 배포와 같은 승인 뒤에 묶으면 서비스가 죽은 채로 기다리게
+  # 되므로, 롤백·재시작·캐시 재적재는 별도 incident 경로로 둔다.
   incident_overrides_approval: true
   incident_signals: [five_xx, empty_body_on_a_page_that_had_one]
   act_without_approval_during_incident: [rollback, container_restart, cache_reload]
   incident_order: recover_first_then_diagnose
   # 한 번에 하나만 처리하면 재촉이 앞 작업 뒤에 줄을 선다. 재촉조차 막히므로
-  # 재촉할수록 줄만 길어진다. 2026-09-01 에 다섯 건이 그렇게 묶였다.
+  # 재촉할수록 줄만 길어진다. 서로 독립적인 작업은 동시에 순회한다.
   concurrency_must_exceed_one: true
   # 사람에게 묻기 전에 스스로 확인할 수 있는지 먼저 본다. 조회하면 알 수 있는
   # 것을 되묻는 순간 일이 사람에게 넘어가고 그만큼 멈춘다.
   #
-  # 2026-09-02: 이미 닫힌 이슈의 응답을 기다린다고 보고했고, 스스로 조회할 수
-  # 있는 설정값을 사람에게 확인해 달라고 했다.
+  # 이미 조회할 수 있는 설정값과 상태를 사람에게 되묻지 않고 먼저 확인한다.
   before_asking_check_yourself: true
   self_verifiable: [설정값, 파일 내용, 응답 상태, 배포 이력, 이슈 상태, DNS 레코드]
   human_only: [서버 콘솔 직접 조작, 외부 업체 계정, 결제, 물리 접근, 사람의 의사결정]
@@ -68,9 +67,44 @@ security:
   sender_has_one_default_workspace: true
   token_owner_lock: required
   duplicate_consumer_behavior: fail_closed
+
+# This is the concrete common-runtime enforcement map. The host supplies the
+# authenticated sender and owner-managed projections; the repository guard
+# checks their relationship before a backend receives a mutating command.
+policy_guard:
+  contract_version: 1
+  entrypoint: ops/gateway/dcg.sh
+  implementation: scripts/policy-guard.mjs
+  adapter_policy_source: projects/<project>/project.yaml
+  participant_projection: runtime_registry
+  authenticated_sender_source: POLICY_SENDER_ID
+  actor_binding: sender_id_to_active_participant_alias_and_workspace
+  role_binding: participant_roles_to_adapter_roles_and_groups
+  issue_work_authority: team_policy.authorization.issue_work_roles
+  issue_binding: open_repository_issue_assignee_matches_actor
+  work_hour_binding: team_policy.work_hours
+  contact_window_binding: discord.contact_window
+  operation_bindings:
+    read_only: [status, health-check, jobs, job, watch, logs, monitor, history, latest, artifacts list]
+    contact_window: [contact-window]
+    issue_work: [submit, restart --job, amend]
+    attachment_download: [attachment --output]
+    launch: [service start, service stop, service restart]
+    runtime_management: [service, cutover, cancel]
+    production_deploy: [declared_project_backend]
+    database_write: [declared_project_backend]
+    rollback: [declared_project_backend]
+  runtime_management_boundary: owner_local_recovery_only
+  runtime_management_forwarding: forbidden_to_remote_project_backend
+  remote_router_permission: separately_authenticated_owner_permission_required
+  production_revision_binding: delegated_command_revision_matches_issue_approval
+  contact_window_backend: never
+  host_boundary:
+    trusted_inputs: [authenticated_sender, owner_managed_registry, owner_managed_issue_projection]
+    outside_repository: [discord_github_authentication, file_permissions, client_credentials]
 gateway_monitoring:
-  # 감시 자동화가 "설치됐다"와 "동작한다"를 구분하지 못해 첫 실증 프로젝트에서
-  # 이틀 동안 배분이 한 번도 성공하지 못했다. 아래는 그 사고에서 나온 계약이다.
+  # 감시 자동화가 "설치됐다"와 "동작한다"를 구분하지 않도록 실제 런타임 검증과
+  # 의도적인 실패 증명을 계약으로 둔다.
   verify_in_target_runtime: required          # 손 실행은 검증이 아니다
   runtime_divergence_guard: required          # 인터프리터 경로·버전을 스크립트가 스스로 고정
   guard_on_unmet_precondition: exit_nonzero   # 조용히 이어가지 않는다
@@ -90,8 +124,7 @@ gateway_monitoring:
     deliberate_resolution_marker: closed_by   # 사람이 정리한 것은 불일치가 아니다
   human_contact_window:
     # 사람에게 가는 모든 알림이 창을 탄다. 예외는 아래 immediate 뿐이다.
-    # 2026-09-05: 프로브 실패를 malfunction 으로 넣어 창을 우회했고,
-    # 심야·주말 DM 이 담당자를 채웠다. 프로브는 창을 열지 않는다.
+    # 프로브·카나리아·자기점검은 창을 우회하는 malfunction으로 분류하지 않는다.
     applies_to: [thread_nudge, routine_reminder_dm, helper_unit_failure, operator_notice]
     never_gated: [persisted_user_visible, gateway_ws_dead, delivery_failure]
     not_never_gated: [probe_false_positive, canary, one_sample_slow, bot_silence, watchdog_self_test]

@@ -1,7 +1,7 @@
 version: 1
 identity:
   name: naia-pj-adk
-  visibility: private
+  visibility: public
   authority_unit: project
 source_of_truth:
   work_item: github_issue
@@ -25,8 +25,12 @@ authority:
   deny_by_default: [merge, deployment, database_write, secret_access, production_access]
   rule: access_to_discord_or_ai_tool_never_grants_operational_authority
 data:
-  tracked_files_must_not_contain: [secret_values, personal_ids, private_hosts, ip_addresses, customer_data, production_topology]
+  tracked_files_must_not_contain: [secret_values, personal_ids, private_hosts, ip_addresses, customer_data, production_topology, runner_state, approval_logs]
   database_policy: each_project_adapter_must_declare_environment_and_write_authority
+  public_examples: placeholders_and_disabled_runtime_only
+third_party:
+  source_and_trademark_notices: downstream_files_retain_their_original_terms
+  bundled_third_party_code: none
 public_release:
   default: forbidden
   review_scope: [working_tree, hidden_files, generated_files, requirements, progress, logs, git_history, tags, workflows, submodules, licenses]

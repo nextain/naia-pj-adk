@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.nextain.invalid/naia-pj-adk/participants.schema.json",
-  "title": "Private runtime participant registry",
+  "title": "Ignored runtime participant registry",
   "type": "object",
   "additionalProperties": false,
   "required": ["participants"],
@@ -11,13 +11,35 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["discordUserId", "alias", "project", "workspace"],
+        "required": ["discordUserId", "alias", "project", "workspace", "roles"],
         "properties": {
           "discordUserId": { "type": "string", "minLength": 1 },
           "alias": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{1,31}$" },
           "project": { "type": "string", "minLength": 1 },
           "workspace": { "type": "string", "minLength": 1 },
-          "enabled": { "type": "boolean", "default": true }
+          "roles": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "enabled": { "type": "boolean", "default": true },
+          "mutationWindow": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["timezone", "days", "start", "end"],
+            "properties": {
+              "timezone": { "type": "string", "minLength": 1 },
+              "days": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 7,
+                "uniqueItems": true,
+                "items": { "type": "integer", "minimum": 1, "maximum": 7 }
+              },
+              "start": { "type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$" },
+              "end": { "type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$" }
+            }
+          }
         }
       }
     }

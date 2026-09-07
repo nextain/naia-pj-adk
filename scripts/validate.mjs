@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { parseYaml, at } from './lib/yaml-lite.mjs';
+import { assertAdapterContractShape } from './lib/adapter-contract.mjs';
+import { validateNativeCommandContract } from './native-command-validator.mjs';
 
 // Structure validation reads the contracts as data.
 //
@@ -45,6 +47,7 @@ function requireType(value, type, label) {
 
 const required = [
   'AGENTS.md', 'CLAUDE.md', 'GEMINI.md', 'CODEX.md', 'README.md', 'LICENSE',
+  'NOTICE',
   '.agents/context/project-policy.yaml',
   '.agents/context/workflow.yaml',
   '.agents/context/execution.yaml',
@@ -56,10 +59,23 @@ const required = [
   'data-branch/_template/AGENTS.md',
   'data-branch/_template/CLAUDE.md',
   'ops/gateway/dcg.sh',
+  'ops/gateway/contact-window.sh',
   'scripts/lib/yaml-lite.mjs',
+  'scripts/lib/participant-registry.mjs',
+  'scripts/policy-guard.mjs',
+  'scripts/native-command-validator.mjs',
+  'ops/gateway/native-command-contract.json',
+  'schemas/participants.schema.json',
+  '.github/workflows/production-deploy.yml',
 ];
 for (const file of required) {
   if (!fs.existsSync(path.join(root, file))) throw new Error(`missing required file: ${file}`);
+}
+
+try {
+  validateNativeCommandContract(JSON.parse(read('ops/gateway/native-command-contract.json')));
+} catch (error) {
+  throw new Error(`native command contract is invalid: ${error.message}`);
 }
 
 // --- entrypoint mirrors -----------------------------------------------------
@@ -137,20 +153,6 @@ if (at(execution, 'watchdog', 'pending_human_response', 're_ask_fallback') !== '
 if (at(execution, 'watchdog', 'pending_human_response', 'our_turn') !== 'dispatch_not_escalate_to_owner') {
   throw new Error('execution contract must dispatch owed bot work instead of paging the owner');
 }
-const discord = contract('.agents/context/discord.yaml');
-if (at(discord, 'gateway_monitoring', 'human_contact_window', 'urgent_override') !== false) {
-  throw new Error('discord contract must not let an urgent flag bypass the contact window');
-}
-if (at(discord, 'gateway_monitoring', 'human_contact_window', 'outside_window') !== 'defer_without_counting') {
-  throw new Error('discord contract must defer an out-of-hours ask without spending a re-ask');
-}
-if (!Array.isArray(at(discord, 'gateway_monitoring', 'shared_channel', 'do_not_post'))
-    || at(discord, 'gateway_monitoring', 'shared_channel', 'do_not_post').length === 0) {
-  throw new Error('discord contract must name what must not be posted to the home channel');
-}
-if (at(discord, 'gateway_monitoring', 'shared_channel', 'never_amplify') !== true) {
-  throw new Error('discord contract must not reply to synthetic home-channel noise');
-}
 if (at(execution, 'completion', 'ai_may_not_declare_completion') !== true) {
   throw new Error('execution contract must keep completion a human decision');
 }
@@ -172,9 +174,6 @@ if (typeof at(reAsk, 'max_re_asks') !== 'number') {
 const contactWindow = at(reAsk, 'contact_window');
 if (at(contactWindow, 'outside_window') !== 'defer_without_counting') {
   throw new Error('execution contract must defer an out-of-hours ask without spending a re-ask');
-}
-if (at(contactWindow, 'urgent_override') !== false) {
-  throw new Error('execution contract must not let an urgent flag bypass the contact window');
 }
 if (!Array.isArray(at(contactWindow, 'never_gated')) || at(contactWindow, 'never_gated').length === 0) {
   throw new Error('execution contract must name what a contact window never delays');
@@ -217,10 +216,46 @@ if (visibility === 'private') {
   throw new Error(`identity.visibility must be private or public, found: ${visibility}`);
 }
 
+// Production is an owner-gated action. The public adapter deliberately has no
+// deployment command, so its workflow must be manually dispatched, protected
+// by the named environment, and fail closed. A push or pull-request trigger
+// would make a public contribution look like an approved production release.
+const productionWorkflow = read('.github/workflows/production-deploy.yml');
+if (!/^\s*workflow_dispatch\s*:/m.test(productionWorkflow)) {
+  throw new Error('production workflow must be manual-only (workflow_dispatch)');
+}
+if (/^\s*(push|pull_request)\s*:/m.test(productionWorkflow)) {
+  throw new Error('production workflow must not trigger from push or pull_request');
+}
+if (!/^\s*environment:\s*production\s*$/m.test(productionWorkflow)) {
+  throw new Error('production workflow must name the production environment');
+}
+if (!/\bexit\s+1\b/.test(productionWorkflow)) {
+  throw new Error('unconfigured production workflow must fail closed');
+}
+
+const gatewayEntrypoint = read('ops/gateway/dcg.sh');
+if (!gatewayEntrypoint.includes('scripts/policy-guard.mjs')
+    || !gatewayEntrypoint.includes('--operation')
+    || !gatewayEntrypoint.includes('GATEWAY_PROJECT_YAML')) {
+  throw new Error('dcg.sh must run the common policy guard before handing off to a runtime');
+}
+const contactWindowEntrypoint = read('ops/gateway/contact-window.sh');
+if (!contactWindowEntrypoint.includes('policy-guard.mjs')
+    || !contactWindowEntrypoint.includes('--operation contact-window')) {
+  throw new Error('contact-window.sh must consume the common work-hour policy guard');
+}
+
 // --- project template and activated adapters --------------------------------
 
 const template = contract('projects/_template/project.yaml');
-requireKeys(template, ['project', 'workspace', 'roles', 'discord', 'commands', 'guards', 'execution', 'tiers', 'ops_profile'], 'project template');
+requireKeys(template, [
+  'project', 'workspace', 'roles', 'discord', 'commands', 'guards',
+  'team_policy', 'execution', 'tiers', 'ops_profile',
+], 'project template');
+if (template.policy_contract_version !== 1) {
+  throw new Error('project template must opt into policy_contract_version 1');
+}
 if (at(template, 'guards', 'production_requires_issue_approval') !== true) {
   throw new Error('project template must require issue approval for production');
 }
@@ -251,6 +286,31 @@ if (at(template, 'discord', 'default_responder_alias') === undefined) {
   throw new Error('project template is missing discord.default_responder_alias');
 }
 
+const TEAM_POLICY_KEYS = {
+  authorization: [
+    'issue_required', 'chat_grants_authority', 'production_deploy_role',
+    'database_write_requires_explicit_authority', 'issue_work_roles',
+  ],
+  work_hours: CONTACT_WINDOW_KEYS,
+  approval: ['production_deploy', 'high_system_risk', 'incident_rollback'],
+  assignment: ['issue_assignee_required', 'unanswered_thread_recipient', 'default_responder_alias'],
+};
+for (const [section, keys] of Object.entries(TEAM_POLICY_KEYS)) {
+  if (at(template, 'team_policy', section) === undefined) {
+    throw new Error(`project template is missing team_policy.${section}`);
+  }
+  for (const key of keys) {
+    if (at(template, 'team_policy', section, key) === undefined) {
+      throw new Error(`project template is missing team_policy.${section}.${key}`);
+    }
+  }
+}
+for (const roleGroup of ['contributors', 'integrators', 'release_owners']) {
+  if (!Array.isArray(at(template, 'roles', roleGroup))) {
+    throw new Error(`project template must declare roles.${roleGroup} as an array`);
+  }
+}
+
 for (const target of TIER_COMMANDS) {
   if (at(template, ...target) === undefined) {
     throw new Error(`project template is missing ${target.join('.')}`);
@@ -278,6 +338,7 @@ for (const entry of fs.readdirSync(projectsDir, { withFileTypes: true })) {
   const relative = path.join('projects', entry.name, 'project.yaml');
   if (!fs.existsSync(path.join(root, relative))) throw new Error(`adapter ${entry.name} has no project.yaml`);
   const adapter = contract(relative);
+  assertAdapterContractShape(adapter, `adapter ${entry.name}`);
   const text = read(relative);
   for (const placeholder of ['replace-me', 'replace.example', 'replace-with-']) {
     if (text.includes(placeholder)) throw new Error(`adapter ${entry.name} still carries the placeholder ${placeholder}`);
@@ -330,6 +391,12 @@ for (const entry of fs.readdirSync(projectsDir, { withFileTypes: true })) {
 const participantSchema = JSON.parse(read('schemas/participants.schema.json'));
 if (participantSchema.additionalProperties !== false || !participantSchema.required.includes('participants')) {
   throw new Error('participant schema must reject unknown root fields and require participants');
+}
+const participantItem = participantSchema.properties?.participants?.items;
+if (participantItem?.additionalProperties !== false
+    || !participantItem?.required?.includes('roles')
+    || participantItem?.properties?.enabled?.type !== 'boolean') {
+  throw new Error('participant schema must require typed role and enabled fields');
 }
 
 const ignore = read('.gitignore');

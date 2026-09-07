@@ -20,7 +20,8 @@ if [ -n "${GATEWAY_RUNTIME_BIN:-}" ]; then
 	export PATH="$GATEWAY_RUNTIME_BIN:$PATH"
 fi
 
-GATEWAY_NODE_MIN=${GATEWAY_NODE_MIN:-22}
+# Keep the gateway floor aligned with package.json and the CI runtime contract.
+GATEWAY_NODE_MIN=${GATEWAY_NODE_MIN:-20}
 _gw_major=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
 if [ "${_gw_major:-0}" -lt "$GATEWAY_NODE_MIN" ] 2>/dev/null; then
 	# 조용히 이어가면 호출부가 crash 출력을 "요청 거절"로 오독한다. 시끄럽게 죽는다.

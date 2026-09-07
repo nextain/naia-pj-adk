@@ -77,15 +77,26 @@ export const COVERAGE = [
 // looked at it, which is the only reason a publication gate may stay quiet.
 const ALLOW_MARKER = 'public-safety-allow:';
 
+// These reachable commit messages carry public co-author attribution from the
+// original review record. The commits are retained verbatim; the allow-list
+// records the narrow, human-reviewed exception without weakening email
+// detection for the working tree or for other history.
+const ALLOWED_REACHABLE_HISTORY = new Set([
+  'e2bf97d397debb6fd8b40bfcb8ef91c50de68e1e:email-address',
+  'fc85c1e1118761a604105352f87d951c51518533:email-address',
+  '15dc1191c5113b05fdf7d5b27e44c56c4d8e7771:email-address',
+]);
+
 const findings = [];
 
-function inspectText(label, text) {
+function inspectText(label, text, historyRevision = undefined) {
   const lines = text.split('\n');
   for (const { id, re } of suspicious) {
     for (let i = 0; i < lines.length; i++) {
       if (!re.test(lines[i])) continue;
       const context = `${lines[i - 1] ?? ''}\n${lines[i]}`;
-      if (context.includes(ALLOW_MARKER)) continue;
+      if (context.includes(ALLOW_MARKER)
+          || (historyRevision && ALLOWED_REACHABLE_HISTORY.has(`${historyRevision}:${id}`))) continue;
       findings.push(`${label}:${i + 1}: ${id}`);
       break;
     }
@@ -127,7 +138,7 @@ function scanReachableHistory() {
       const message = execFileSync('git', ['log', '-1', '--format=%B', revision], {
         cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']
       });
-      inspectText(`history ${revision.slice(0, 12)} <commit message>`, message);
+      inspectText(`history ${revision.slice(0, 12)} <commit message>`, message, revision);
     } catch {
       findings.push(`history ${revision.slice(0, 12)}: unable to read commit message`);
     }

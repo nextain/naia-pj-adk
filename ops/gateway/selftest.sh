@@ -12,17 +12,12 @@ bad()  { printf '  ★실패 %s — %s\n' "$1" "$2"; fail=1; }
 want() { [ "$2" = "$3" ] && ok "$1" || bad "$1" "기대=$3 실제=$2"; }
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-cat > "$tmp/project.yaml" <<'YAML'
-version: 1
-discord:
-  enabled: true
-  contact_window:
-    timezone: UTC
-    days: [mon, tue, wed, thu, fri]
-    start_hour: 10
-    end_hour: 18
-  default_responder_alias: owner
-YAML
+cp "$here/../../projects/example/project.yaml" "$tmp/project.yaml"
+sed -i \
+  -e 's/start_hour: 9/start_hour: 10/g' \
+  -e 's/end_hour: 17/end_hour: 18/g' \
+  -e 's/default_responder_alias: null/default_responder_alias: owner/g' \
+  "$tmp/project.yaml"
 
 echo "== 설정 읽기 =="
 GATEWAY_PROJECT_YAML="$tmp/project.yaml"; export GATEWAY_PROJECT_YAML
@@ -40,6 +35,9 @@ sed '/start_hour/d' "$tmp/project.yaml" > "$tmp/partial.yaml"
 want "빈 칸은 실패"     "$?" "1"
 
 echo "== 창 진리표 (UTC 월~금 10~18) =="
+# The contact-window guard derives time from its own clock in production. This
+# explicit marker permits the fake date function below to exercise every edge.
+POLICY_GUARD_TEST_CLOCK=1; export POLICY_GUARD_TEST_CLOCK
 date() { case "$*" in "+%u") printf '%s' "$FAKE_DOW";; "+%-H") printf '%s' "$FAKE_HOUR";; *) command date "$@";; esac; }
 check() { FAKE_DOW=$1 FAKE_HOUR=$2; export FAKE_DOW FAKE_HOUR
           if within_contact_window; then printf 'open'; else printf 'shut'; fi; }

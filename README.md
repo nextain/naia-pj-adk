@@ -1,64 +1,114 @@
 # naia-pj-adk
 
-팀이 여러 개발 도구와 작업공간을 사용하면서도 하나의 프로젝트 규칙으로 협업하도록 돕는 비공개 ADK입니다.
+여러 개발 도구와 작업공간을 사용하는 팀이 하나의 프로젝트 규칙으로
+일하도록 돕는 공개 ADK입니다. 이 저장소는 제품 소스가 아니라 프로젝트
+어댑터, 검증 가능한 작업 절차, 게이트웨이 운영 부품을 제공합니다.
 
-핵심 원칙은 단순합니다.
+핵심 원칙은 다음과 같습니다.
 
-- GitHub 이슈가 업무의 정본입니다.
-- 개발자는 자신의 SSH 작업공간과 개인 브랜치에서 Codex 또는 Claude로 작업합니다.
-- Discord는 이슈별 스레드에서 상태 확인, 논의, 자료 전달, 검수 요청을 담당합니다.
-- 병합, 배포, 데이터베이스 변경 권한은 대화 도구가 아니라 프로젝트 정책으로 결정합니다.
-- 프로젝트마다 Discord 앱과 게이트웨이는 하나만 운영합니다.
-- 새 프로젝트는 `projects/_template/`을 복사해 프로젝트별 사실과 권한만 채웁니다.
-제품 소스 clone은 `checkouts/`에 두고 `projects/`에는 어댑터만 둡니다. 브랜치마다
-다른 에이전트 규칙은 `data-branch/`입니다. 레이아웃 정본은
-[작업공간 레이아웃](docs/WORKSPACE.ko.md)입니다.
+- GitHub 이슈가 업무의 정본입니다. 이슈에는 담당자, 완료 조건, 검증과 롤백을 남깁니다.
+- 개발은 이슈 브랜치에서 합니다. 병합과 배포 권한은 프로젝트 역할로 결정합니다.
+- `projects/<project>/project.yaml`의 `team_policy`가 이슈 권한, 업무시간, 승인,
+  미응답 스레드의 담당 규칙을 선언합니다.
+- Discord는 이슈 스레드와 작업 전달을 담당합니다. 대화나 도구 접근은 운영 권한을
+  만들지 않습니다.
+- 토큰, 비밀번호, 개인 ID, 사설 호스트, 고객 자료와 운영 상태는 추적하지 않습니다.
+  런타임 등록부는 무시되는 파일에 둡니다.
+- 제품 소스 clone은 `checkouts/`에 두고 `projects/`에는 어댑터만 둡니다.
 
-첫 실증 대상은 `onmam-dev`이며, 검증 후 `naia-comm` 같은 팀 프로젝트로 확장합니다. 실증 프로젝트의 계정, 서버, 고객 정보, 자격 증명은 이 저장소에 넣지 않습니다.
+`policy_contract_version: 1`을 선언한 어댑터만 공통 정책 가드에 연결됩니다. `roles`의
+`contributors`, `integrators`, `release_owners`는 역할 그룹이며 한 사람이 여러 그룹에
+속할 수 있습니다. `team_policy.authorization.issue_work_roles`에 명시된 역할 또는 그룹만
+이슈 작업을 위임받고, `contributors`라는 이름만으로 쓰기 권한을 얻지는 않습니다. 기존
+어댑터는 소유자가 역할·그룹과 이슈 작업 권한을 채워 명시적으로 마이그레이션해야 합니다.
+참가자 등록부는 추적하지 않는 런타임 투영이고, `ops/gateway/dcg.sh`는 등록된 sender ID를
+alias·workspace·역할에 연결한 뒤 이슈 담당·업무시간·승인·운영 명령을 검사합니다. 호스트의
+Discord/GitHub 인증과 파일 권한은 이 저장소 밖의 trusted-host 경계에서 제공합니다.
 
-## 작업 흐름
+## 새 프로젝트 시작
 
-1. GitHub 이슈를 만들고 담당자와 완료 조건을 적습니다.
-2. 개인 계정으로 개발 서버에 SSH 접속합니다.
-3. 개인 작업공간에서 이슈 브랜치를 만들고 Codex 또는 Claude를 실행합니다.
-4. 구현·검증 결과를 이슈에 기록하고 `dev` 병합을 요청합니다.
-5. 병합 담당자가 검토 후 `dev`에 병합·배포하고 결과를 이슈에 기록합니다.
-6. 검수 담당자가 개발 환경을 확인한 뒤 운영 배포 여부를 결정합니다.
-7. 운영 배포 결과와 되돌리기 정보를 기록하고 이슈를 닫습니다.
+`projects/_template/`을 복사해 프로젝트 사실과 역할을 채우고, 변경을 허용하는
+`team_policy.work_hours`와 사람에게 연락할 수 있는 `discord.contact_window`를 각각
+정합니다. 두 창은 서로 다를 수 있습니다. Discord는 런타임 등록부와 토큰을 준비한
+뒤에만 켜며, 새 어댑터는 먼저 비활성 상태로 계약을 검증합니다.
 
-자세한 내용은 [운영 절차](docs/WORKFLOW.ko.md)와 [Discord 협업 설계](docs/DISCORD.ko.md)를 참고합니다.
+브랜치 방식은 어댑터가 선언한 `integration_branch`를 따릅니다.
 
-절차는 누가 무엇을 하는지 정하고, [실행 계약 운영 매뉴얼](docs/OPERATIONS.ko.md)은 기계가 무엇을 거절해야 하는지 정합니다. 운영 읽기와 사용자 인식 장애 배포를 승인 없이 해도 되는지는 [운영 프로파일](docs/OPS-PROFILE.ko.md)이 정합니다. 봇 일을 전문 개발자·배포 담당자에게 몰지 않는 것도 그 문서입니다. 배포·검증·롤백을 붙이기 전에 후자를 먼저 읽습니다.
+- main-only: `default_branch`와 `integration_branch`를 모두 `main`으로 두고 이슈
+  브랜치를 `main`에서 만들어 `main`으로 병합합니다.
+- 선언형 통합 브랜치: 어댑터에 실제 통합 브랜치 이름을 선언하고 이슈 브랜치를
+  그곳에서 만들어 통합합니다. 운영 승격은 승인된 정확한 리비전으로 별도 수행합니다.
 
-작업을 정의하는 앞 단계는 [`development-method.yaml`](.agents/context/development-method.yaml) 이 담습니다. 용어에서 시작해 UC 와 FE 로 내려가고, 큰 변경은 배정 전에 분류합니다.
+자세한 신규 기여·실패 복구·롤백 절차는 [팀 개발 운영 절차](docs/WORKFLOW.ko.md),
+디렉터리 규칙은 [작업공간 레이아웃](docs/WORKSPACE.ko.md)을 참고합니다.
 
-이 저장소는 비공개입니다. 무엇이 충족돼야 공개할 수 있는지는 [공개 준비 상태](docs/OPENING.ko.md)에 적혀 있습니다.
-
-## 디렉터리
-
-| 경로 | 추적 | 역할 |
-|------|------|------|
-| `projects/` | 예 | 프로젝트 어댑터 |
-| `checkouts/` | 아니오 | 제품 git clone |
-| `data-branch/` | 예 | git 브랜치별 `AGENTS.md`=`CLAUDE.md` |
-| `ops/gateway/` | 예 | 게이트웨이 감시·알림 급 판정. 운영 CLI는 `dcg.sh` |
-
-다른 머신:
-
-```bash
-git clone <this-repo> ~/naia-pj-adk
-cd ~/naia-pj-adk
-npm test
-# 제품 소스는 여기 clone 하지 않는다. checkouts/ 에 둔다.
-```
-
-운영 진입점(프로젝트 게이트웨이가 있을 때):
+## 독립 clone에서 첫 기여
 
 ```bash
-export PROJECT_GATEWAY_CTL=/path/to/project-gateway-ctl.sh
-./ops/gateway/dcg.sh status
-./ops/gateway/dcg.sh jobs --active
+git clone <공개-저장소-주소> <프로젝트-디렉터리>
+cd <프로젝트-디렉터리>
+git fetch origin --prune
 ```
+
+canonical 저장소를 자신의 fork로 만들고 위 clone의 `origin`은 자신의 fork,
+`upstream`은 canonical 저장소의 HTTPS 주소로 둡니다. 어댑터의
+`integration_branch`에서 이슈 브랜치를 만든 뒤, 이슈에 연결된 검증 명령을
+실행합니다. 결과의 표준 출력·표준 오류·종료코드를 보존하고, PR에는 변경 범위와
+검증·롤백 방법을 함께 적습니다. 기여자는 운영 배포나 데이터베이스 변경을 하지
+않습니다.
+
+첫 미션은 문서 한 파일이나 계약 테스트 한 사례처럼 작고 되돌릴 수 있는 변경으로
+선택합니다. 선행 조건은 GitHub 계정과 fork, Node.js 20 이상, 열린 이슈·담당자,
+완료 조건, 이슈 브랜치, 실행 가능한 롤백 계획입니다. PR CI가 통과해도 reviewer의
+독립 검토, integrator의 병합, release owner의 운영 승인이 끝난 것은 아닙니다.
+
+고위험 변경은 구현자와 독립된 reviewer가 정확한 diff, 실행 명령과 결과, 영향 범위,
+동시 변경, 롤백 산출물을 확인합니다. 이 저장소의 production workflow는 push나 PR로
+실행되지 않고 `workflow_dispatch`와 명시적인 `production` environment를 요구하는
+실패 방지용 guard입니다. 비활성 example adapter에서는 배포 명령이 없어 종료코드
+1로 멈춥니다.
+
+게이트웨이의 issue-work는 `submit`, `restart --job <id>`, `amend`로만 연결되며,
+`retry`는 native 런타임 명령이 아닙니다. 이슈 작업은 인증된 프로젝트 backend를
+명시해야 하고 native 개인 런타임으로 우회하지 않습니다. native `service`와
+`cutover prepare|verify|canary|rollback`은 런타임 관리로만 취급하며 production 배포가
+아닙니다. production·database·rollback은 어댑터의
+`gateway.project_backend.capabilities`에 선언된 backend 명령만 사용하고, 명령 인자에
+승인된 `--revision <40자리 SHA>`를 정확히 하나 전달합니다. `POLICY_REVISION`을 함께
+쓰면 같은 값인지 확인합니다. `artifacts list`만 native 조회로 허용하며 `artifacts prune`은
+변경 명령이라 게이트웨이에서 거부합니다. `attachment --output`은
+`PROJECT_POLICY_OPERATION=attachment-download`를 명시한 제한된 다운로드로만 실행합니다.
+`contact-window`는 backend를 호출하지 않는 연락 가능 시간 확인입니다.
+
+`service`, `cutover`, `cancel`은 런타임 소유자의 호스트에서 복구하는 로컬 작업입니다.
+project backend나 원격 라우터로 자동 전달하지 않으며, 원격 요청은 별도의 인증된 소유자
+권한을 통과해야 합니다.
+
+`PROJECT_GATEWAY_WORKSPACE`는 trusted host가 인증된 참가자에게서 투영한 canonical 절대
+workspace 경로이며, 등록부의 참가자 workspace와 일치하는 기존 디렉터리일 때만 project
+backend에 전달됩니다. issue-work와 high-impact project backend는 이 canonical 경로에서
+실행됩니다. 이 값 검사는 호스트 파일시스템 sandbox를 대신하지 않습니다.
+
+## 게이트웨이 capability와 협업 경계
+
+프로젝트 어댑터의 `gateway.project_backend.capabilities`는 명령 이름과 인자 모양을
+선언합니다. bridge는 어댑터, 인증된 참가자와 역할, 열린 이슈 증거, route의 프로젝트
+ID, canonical workspace를 입력으로 받아 policy를 다시 검사한 뒤 정확한 `argv`, `cwd`,
+허용 경로 또는 거부 사유를 반환합니다. 이 결과를 받은 호출자가 임의로 인자를 덧붙이거나
+다른 workspace로 바꾸지 않습니다. issue-work의 repository·number·assignee와 restart의
+job id는 선언된 placeholder 위치에만 투영하고, production·database·rollback은 승인된
+40자리 SHA를 `--revision`으로 한 번만 전달합니다.
+
+참가자 등록부의 mutation window가 열려 있을 때만 역할 변경이나 workspace 연결을
+적용합니다. 창이 닫히면 읽기와 진단만 남기고 기존 등록부를 조용히 덮어쓰지 않습니다.
+이전 어댑터는 `policy_contract_version`, `issue_work_roles`, work hours와 capability를
+명시한 마이그레이션 diff를 먼저 만들고 검증합니다. 예전 필드 이름이나 주변 `tmp`를
+자동 복구 입력으로 삼지 않습니다.
+
+업무 분담도 권한과 함께 고정합니다. contributor는 이슈 작업과 검증을 제안하고,
+integrator는 독립 검토 뒤 통합하며, release owner는 production·database·rollback
+승인과 운영 리비전을 맡습니다. reviewer는 구현자와 분리된 diff·로그·롤백 증거를 확인하고,
+원격 라우터는 인증된 요청을 전달할 뿐 로컬 런타임 소유권을 대신하지 않습니다.
 
 ## 검증
 
@@ -66,6 +116,20 @@ export PROJECT_GATEWAY_CTL=/path/to/project-gateway-ctl.sh
 npm test
 ```
 
-## 공개 금지
+`npm test`는 계약·구조·게이트웨이 self-test·공개 안전 검사를 순서대로 실행합니다.
+공개 안전 검사는 현재 트리와 도달 가능한 Git 이력을 모두 확인합니다. 공개 전환,
+템플릿 배포, push는 소유자의 정확한 후보 SHA 검수 뒤에 별도로 수행합니다.
 
-이 저장소는 비공개가 기본입니다. 공개 전환이나 공개 템플릿 배포는 별도의 공개 적합성 검수와 저장소 소유자의 명시적 승인이 없으면 금지됩니다.
+현재 저장소는 공통 example adapter를 비활성 상태로 제공하므로 예제 검증은 실제
+프로젝트 배포를 증명하지 않습니다. 제품별 배포 명령과 런타임 자격은 각 프로젝트가
+자체 어댑터와 무시되는 런타임 설정으로 채웁니다.
+
+## 라이선스와 제3자 자료
+
+이 저장소의 원본은 Apache-2.0으로 배포합니다. `NOTICE`의 안내에 따라 downstream이
+추가하는 제3자 소스와 상표의 원래 고지와 라이선스를 보존합니다. 이름이나 자료의
+권리는 이 저장소의 라이선스로 이전되지 않습니다.
+
+저장소 간 채택 범위와 제외한 개인·운영 자료는 [계보 문서](docs/LINEAGE.ko.md),
+상세한 fork·PR·실패·롤백 절차는 [팀 개발 운영 절차](docs/WORKFLOW.ko.md)에서
+확인할 수 있습니다.

@@ -1,0 +1,10 @@
+naia-pj-adk
+
+Copyright and Apache-2.0 apply to the original source in this repository as
+stated in LICENSE.
+
+This repository does not bundle third-party source code, binaries, images,
+fonts, or trademarks. A downstream project may add those assets under its own
+directory; each asset remains under its original owner's license, attribution,
+credit, and redistribution terms. Adding an asset does not grant a license to
+it here. Review each asset's NOTICE and metadata before distribution.

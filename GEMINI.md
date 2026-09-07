@@ -1,6 +1,6 @@
 # naia-pj-adk
 
-Private, team-and-project-centered ADK. The project, not an individual agent, is the unit of context and authority.
+Public, team-and-project-centered ADK. The project, not an individual agent, is the unit of context and authority.
 
 ## Mandatory reads
 
@@ -19,12 +19,13 @@ Before acting, read:
 
 - Every work item starts from a GitHub issue. The issue is the durable source of truth for scope, decisions, validation, merge, deployment, and rollback.
 - Code work happens in each participant's SSH workspace using an issue branch. Codex and Claude inherit the same repository rules.
+- `projects/<project>/project.yaml` `team_policy` is the machine-checked source for issue authority, working hours, approval gates, and unanswered-thread assignment. Keep it aligned with the Discord contact window.
 - Never infer merge, deployment, database, secret, or production authority from a Discord message or from access to a coding tool.
 - Discord is a coordination surface. Use one bot token and one gateway consumer per project, and one thread per GitHub issue.
 - A direct message selects the sender's registered workspace but grants no additional authority.
 - Never store tokens, passwords, personal Discord IDs, private hostnames, IP addresses, customer data, or production topology in tracked files. Use ignored runtime configuration and placeholders.
 - Do not copy requirements, progress records, logs, examples, or Git history from another project unless each item is intentionally adopted and safe for this repository.
-- Public creation, visibility change, template publication, or public push fails closed until the full tree and reachable Git history pass public-safety review and the owner approves the exact commit SHA.
+- Public creation, visibility change, template publication, or public push fails closed until the full tree and reachable Git history pass public-safety review and the owner approves the exact commit SHA. This candidate preparation does not perform those external actions.
 - Classify the change before assigning it. A feature needs a confirmed use case and a feature spec before implementation starts; skipping that is how part of a task gets reported as all of it.
 - A term that is not in the glossary is a question, not a guess.
 - A deployment guard is a command that exits non-zero, not a paragraph. An adapter whose `execution` commands are still `null` is not ready for the target those commands name.

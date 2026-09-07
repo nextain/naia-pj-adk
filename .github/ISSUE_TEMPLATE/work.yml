@@ -19,7 +19,7 @@ body:
     id: assignee_alias
     attributes:
       label: 담당자 별칭
-      placeholder: "예: dh/onmam-dev"
+      placeholder: "예: contributor/example"
     validations:
       required: true
   - type: textarea
@@ -33,5 +33,9 @@ body:
     attributes:
       label: 작업 전 확인
       options:
-        - label: 개인 브랜치에서 작업하며 dev 병합 전 운영 배포나 DB 변경을 하지 않습니다.
+        - label: 이슈 브랜치에서 작업하며 통합 전 운영 배포나 DB 변경을 하지 않습니다.
+          required: true
+        - label: 검증 명령과 원시 stdout·stderr·종료코드를 보존할 위치를 정했습니다.
+          required: true
+        - label: 실패 시 되돌릴 리비전 또는 산출물을 준비했습니다.
           required: true

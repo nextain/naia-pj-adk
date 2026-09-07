@@ -9,6 +9,8 @@ states:
   - production_approved
   - production_deployed
   - closed
+# The historical `dev_*` identifiers below mean the adapter's declared
+# integration tier. They do not require a branch literally named `dev`.
 transitions:
   - from: issue_open
     to: branch_active
@@ -45,15 +47,10 @@ rules:
 # Divergence is what these states are for. A workflow that records every
 # transition still fails if the running system is not what the branch says.
 divergence:
-  # Observed 2026-08-31: production ran a commit from sixteen days earlier with
-  # thirty hand-edited files on top. Among them were the board controller and
-  # the MySQL TLS driver. The next deploy from the integration branch would have
-  # erased all of it, which is why the originating issue had to be reopened.
-  #
-  # The cause was not carelessness. Every deploy path was broken: the staging
-  # step pointed at a host that did not exist, the production step pointed at a
-  # decommissioned cloud, and neither server could fetch from the remote. Hand
-  # editing production was the only route left open.
+  # A running target can drift from the revision that the integration branch
+  # identifies. The next deployment must expose that drift before replacing it;
+  # the target's source, runtime configuration, and uncommitted files are all
+  # part of the review.
   invariant: the_running_revision_is_reachable_from_the_integration_branch
   detect:
     - compare_running_revision_to_integration_branch
@@ -69,10 +66,8 @@ divergence:
 
 # A change that exists only in a local branch has not been delivered.
 delivery:
-  # Observed 2026-09-01: a fix for a reported bug sat on a local branch for four
-  # days. It was written, committed, and never pushed, so the reporter saw no
-  # change at all and kept asking. The work looked done from inside and was
-  # invisible from outside.
+  # A local commit is evidence of work, not delivery. A reachable remote ref and
+  # a target validation record are needed before a change is reported as delivered.
   not_delivered_until: pushed_to_remote_and_deployed_to_the_target
   rejects:
     - local_branch_as_completion

@@ -20,6 +20,9 @@
 #   . "$(dirname "$0")/contact-window.sh"
 #   if within_contact_window; then …
 
+contact_window_here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+contact_window_policy_guard="${POLICY_GUARD_BIN:-$contact_window_here/../../scripts/policy-guard.mjs}"
+
 contact_window_tz=""
 contact_window_days=""
 contact_window_start=""
@@ -71,13 +74,30 @@ load_contact_window() {
 }
 
 within_contact_window() {
-	[ "${GATEWAY_IGNORE_HOURS:-0}" = "1" ] && return 0
+  if [ "${GATEWAY_IGNORE_HOURS:-0}" = "1" ]; then
+    # Bypassing hours is a deterministic test hook, never a production switch.
+    [ "${POLICY_GUARD_TEST_CLOCK:-0}" = "1" ] || return 1
+    return 0
+  fi
 	[ -n "$contact_window_days" ] || return 1
 	local dow hour
 	dow="$(TZ="$contact_window_tz" date +%u)"
 	hour="$(TZ="$contact_window_tz" date +%-H)"
-	case ",$contact_window_days," in *",$dow,"*) ;; *) return 1 ;; esac
-	[ "$hour" -ge "$contact_window_start" ] && [ "$hour" -lt "$contact_window_end" ]
+	# The shell values above keep the caller's existing interface. The policy
+	# The guard is the authority for the independent discord.contact_window
+	# schedule; team_policy.work_hours is enforced by mutation operations.
+	[ -r "${GATEWAY_PROJECT_YAML:-}" ] || return 1
+	command -v node >/dev/null 2>&1 || return 1
+	local guard_args=(
+		--operation contact-window
+		--adapter "$GATEWAY_PROJECT_YAML"
+	)
+	# Production derives the time from the guard's clock. Supplying day/hour is
+	# reserved for the self-test's explicitly marked fake clock.
+	if [ "${POLICY_GUARD_TEST_CLOCK:-0}" = "1" ]; then
+		guard_args+=(--day "$dow" --hour "$hour")
+	fi
+	command node "$contact_window_policy_guard" "${guard_args[@]}" >/dev/null 2>&1
 }
 
 # 재촉을 지금 보내도 되는가. 창 안에서만 참이다. 긴급 표시로 우회하지 않는다.
@@ -89,12 +109,11 @@ nudge_may_send() {
 # 공용 채널에 올리면 안 되는 글인가. 홈 채널은 팀 전원이 본다.
 is_shared_channel_noise() {
 	printf '%s' "${1:-}" | grep -qiE \
-		'카나리아 접수 실패|job control receipt|synthetic_probe|one.sample.slow|감시 정상화|공개 페이지 응답 이상|watchdog_self_test|onmam-gateway-response-check|media-resilience-synthetic'
+		'카나리아 접수 실패|job control receipt|synthetic_probe|one.sample.slow|감시 정상화|공개 페이지 응답 이상|watchdog_self_test'
 }
 
-# 남이 쓴 글을 인용하면 그 안의 호출 문법이 살아난다. 실증 프로젝트의 저장된 요약
-# 하나에 `@everyone` 이 있었고, 그대로 실렸다면 확인 요청 한 통이 서버 전체를
-# 부를 뻔했다. 보이는 모양은 두고 호출만 성립하지 않게 한다.
+# 남이 쓴 글을 인용하면 그 안의 호출 문법이 살아난다. 저장된 요약에
+# `@everyone` 이 있어도 확인 요청이 채널 전체를 부르지 않게 한다.
 neutralize_mentions() {
 	local zwsp=$'​'
 	printf '%s' "$1" \

@@ -1,9 +1,0 @@
-{
-  "operation": "force",
-  "remote": "origin",
-  "refspec": "HEAD:main",
-  "reason": "커밋 메시지의 깨진 글자를 고치려고 두 커밋을 하나로 다시 씀. 트리는 검토 완료본과 동일.",
-  "approved_by": "luke",
-  "expires_at": "2026-08-26T01:30:45Z",
-  "consumed_at": "2026-08-26T01:15:48.835Z"
-}

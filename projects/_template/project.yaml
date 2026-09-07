@@ -1,10 +1,40 @@
 version: 1
+# Explicit opt-in to the common runtime policy contract. Legacy adapters are
+# rejected until an owner maps their roles and mutation capabilities.
+policy_contract_version: 1
+# Optional project gateway example. Keep every delegated argv token explicit:
+# issue evidence is projected only into the three required markers, and the
+# restart job id is the only command-specific value. The bridge receives the
+# adapter, authenticated participant, issue evidence, route project and
+# canonical workspace; it returns the exact argv/cwd or a denial.
+# gateway:
+#   project_backend:
+#     capabilities:
+#       issue_work:
+#         commands:
+#           submit:
+#             argv: [submit, --issue-repository, "{{issue_repository}}", --issue-number, "{{issue_number}}", --issue-assignee, "{{issue_assignee}}"]
+#           restart:
+#             argv: [restart, --job, "{{job_id}}", --issue-repository, "{{issue_repository}}", --issue-number, "{{issue_number}}", --issue-assignee, "{{issue_assignee}}"]
+#           amend:
+#             argv: [amend, --issue-repository, "{{issue_repository}}", --issue-number, "{{issue_number}}", --issue-assignee, "{{issue_assignee}}"]
+#       production_deploy:
+#         argv: [deploy-production, --revision]
+#         revision_arg: --revision
+#       database_write:
+#         argv: [database-write, --revision]
+#         revision_arg: --revision
+#       rollback:
+#         argv: [rollback, --revision]
+#         revision_arg: --revision
 project:
   id: replace-me
   repository: replace-me/replace-me
   issue_tracker: github
   default_branch: main
-  integration_branch: dev
+  # Start with main-only integration. A project with a separate integration
+  # tier must declare its actual branch name here before onboarding.
+  integration_branch: main
 workspace:
   ssh_home_pattern: "~/project-name"
   branch_pattern: "issue/<number>-<short-name>"
@@ -12,6 +42,29 @@ roles:
   contributors: []
   integrators: []
   release_owners: []
+team_policy:
+  # These values are the source for authority, working hours, approvals, and
+  # unanswered-thread assignment. Keep them aligned with discord.contact_window
+  # when Discord is enabled; null values force a new project to decide.
+  authorization:
+    issue_required: null
+    chat_grants_authority: null
+    production_deploy_role: null
+    database_write_requires_explicit_authority: null
+    issue_work_roles: null
+  work_hours:
+    timezone: null
+    days: null
+    start_hour: null
+    end_hour: null
+  approval:
+    production_deploy: null
+    high_system_risk: null
+    incident_rollback: null
+  assignment:
+    issue_assignee_required: null
+    unanswered_thread_recipient: null
+    default_responder_alias: null
 discord:
   enabled: false
   project_alias: replace-me

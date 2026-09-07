@@ -73,6 +73,80 @@ npm run gateway:selftest
 게이트를 고친 뒤에는 한 번 일부러 깨뜨려 시험이 잡는지 보십시오. 통과만 확인한
 게이트는 통과만 하는 게이트일 수 있습니다.
 
+## 프로젝트 CLI 경계
+
+`ops/gateway/dcg.sh` 는 신뢰된 호스트에서 프로젝트 어댑터와 로컬 런타임 사이를
+검사하는 진입점입니다. 이 검사는 Discord/GitHub 발신자 인증, 파일 권한, 샌드박스
+또는 원격 메시지 라우터를 대신하지 않습니다. 호스트가 제공하는 발신자와 작업공간
+투영을 검증한 뒤, 실제 위임 전에 정책을 다시 평가합니다.
+
+다음 환경 변수는 값 자체를 저장하지 않는 실행 계약입니다.
+
+| 변수 | 용도 |
+|---|---|
+| `GATEWAY_PROJECT_YAML` | 읽을 수 있는 프로젝트 어댑터 |
+| `GATEWAY_PARTICIPANT_REGISTRY` | 로컬 참가자 등록부 |
+| `POLICY_SENDER_ID` · `POLICY_ACTOR_ALIAS` | 호스트가 인증한 참가자 투영 |
+| `POLICY_ISSUE_EVIDENCE` | 실제 이슈의 저장된 증거 |
+| `PROJECT_GATEWAY_WORKSPACE` | 참가자와 일치해야 하는 절대 작업공간 |
+| `PROJECT_POLICY_OPERATION` | `issue-work`, `production-deploy`, `database-write`, `rollback`, `attachment-download` 같은 명시 작업 |
+| `NAIA_DCG_BACKEND` | `project`, `adk`, `auto` 중 위임 대상 |
+| `PROJECT_GATEWAY_CTL` · `NAIA_ADK_ROOT` | 프로젝트 컨트롤러와 실제 naia-adk 런타임 경로 |
+| `POLICY_GUARD_TEST_CLOCK` · `POLICY_DAY` · `POLICY_HOUR` | 폐기 가능한 테스트 시계 전용 입력 |
+
+native 명령의 허용 범위는 버전이 붙은
+[`native-command-contract.json`](native-command-contract.json)에 있습니다. 상태 조회와
+`artifacts list`만 읽기 작업입니다. `artifacts prune`은 노출하지 않으며, `retry`는
+지원하지 않고 `restart --job <id>`를 사용합니다. native `service`, `cutover`, `cancel`은
+소유자가 있는 호스트에서만 수행하는 로컬 복구 작업으로 project production backend와
+분리됩니다. 원격 라우터가 이 작업을 전달하려면 별도의 인증된 소유자 권한을 확보해야
+하며, 게이트웨이는 project backend로 전달하지 않습니다. native cutover에는
+`--revision`을 넘기지 않습니다.
+
+이슈 작업은 명시적인 `NAIA_DCG_BACKEND=project`와 실행 가능한
+`PROJECT_GATEWAY_CTL`, 열린 이슈 증거, 등록부의 참가자·역할·정식 작업공간이 모두
+있어야 합니다. `submit`, `restart --job <id>`, `amend`만 프로젝트 capability에
+선언할 수 있고, 증거의 저장소·번호·담당자가 위임 argv에 함께 바인딩됩니다.
+production·database·rollback은 프로젝트 capability와 정확히 하나의 별도 40자리
+revision을 요구합니다. 승인된 revision과 backend에 전달하는 revision이 다르면
+거부합니다.
+
+attachment는 `attachment-download`를 명시해야 하며, `--output`은 참가자 작업공간
+안의 아직 없는 절대 경로여야 합니다. 심볼릭 링크를 따라간 실제 경로도 작업공간
+경계 밖이면 거부합니다. 등록부가 손상된 경우에도 trusted host의 상태 조회와
+서비스 복구는 가능하지만, 원격 참가자의 mutation 권한을 부여하지는 않습니다.
+
+예제의 실행은 실제 Discord 활성화가 아닙니다. 비밀값은 저장소에 넣지 말고, native
+helper가 바뀌면 위 contract와 wrapper 회귀시험을 함께 갱신하십시오.
+
+### native 구현 일치 검사
+
+`native-command-contract.json`은 프로젝트 wrapper가 노출하는 경계이고, 실제
+`naia-adk` CLI의 인자·옵션·관리 작업 목록은 native 구현이 소유합니다. native
+dispatch는 `NAIA_ADK_ROOT`에 명시된 절대 경로를 받아야 하며, 인접한 checkout을
+자동으로 찾지 않습니다. dispatch 직전에 validator가 contract의
+`native_dependency` module/export를 그 경로에서 읽어 surface, 옵션, service/cutover
+작업을 비교하고, 불일치하면 native 프로세스를 시작하지 않습니다.
+
+예를 들어 wrapper contract와 특정 native checkout을 함께 검사합니다.
+
+```bash
+node scripts/native-command-validator.mjs \
+  --contract ops/gateway/native-command-contract.json \
+  --native-root /absolute/path/to/naia-adk \
+  -- status
+```
+
+전체 경계 회귀시험은 다음처럼 실행합니다. `NAIA_NATIVE_ROOT`를 절대 경로로 설정한
+경우에만 native 구현 일치 검사를 활성화합니다. 설정하지 않으면 그 통합 사례는
+건너뛰며, 인접한 `tmp`나 다른 checkout을 자동으로 찾지 않습니다.
+
+```bash
+node --test scripts/native-command-validator.test.mjs scripts/policy-guard.test.mjs
+NAIA_NATIVE_ROOT=/absolute/path/to/naia-adk \
+  node --test scripts/native-command-validator.test.mjs
+```
+
 ## 바깥층 감시
 
 여기 있는 것은 전부 감시 대상과 같은 장비에서 돕니다. 그 장비가 죽으면 함께
