@@ -1,0 +1,17 @@
+{
+  "contract_version": 1,
+  "runtime": "manage-discord-sessions",
+  "scope": "wrapper-boundary",
+  "native_dependency": {
+    "module": ".agents/skills/manage-discord-sessions/helper/native-command-contract.mjs",
+    "export": "NATIVE_COMMAND_CONTRACT",
+    "source_revision": "a47745a792e6e563acc7fcb50503171f28f2ab8d",
+    "module_sha256": "fe420f5af4f3eba85caa65503e2eb96089160bac04a0875ba078c5c890bfd9b4",
+    "required_options": ["--job", "--instance", "--output"],
+    "adapter": {
+      "readonly_commands": ["artifacts list"],
+      "unsupported_commands": ["artifacts prune", "retry"]
+    }
+  },
+  "binding": "The pinned native module owns command, option, action, and arity surfaces; this project boundary declares only its narrowing."
+}
