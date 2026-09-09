@@ -1,0 +1,76 @@
+version: 1
+# Explicit opt-in to the common runtime policy contract. Legacy adapters are
+# rejected until an owner maps their roles and mutation capabilities.
+policy_contract_version: 1
+# Deployment profile. A local team clones the product repositories onto each
+# member's own machine; there is no shared host, no deployment tier and no
+# server home directory. Copy projects/_template/ instead when the team shares
+# one server.
+profile: local
+project:
+  id: replace-me
+  repository: replace-me/replace-me
+  issue_tracker: github
+  default_branch: main
+  integration_branch: main
+workspace:
+  # No ssh_home_pattern here. Each member works in a clone on their own device,
+  # and naming a server home would point at a path nobody has.
+  branch_pattern: "issue/<number>-<short-name>"
+local_workspace:
+  # 기기 등록부. 회차는 기기가 가져가므로, 등록되지 않은 기기의 claim 은
+  # 아무도 찾을 수 없는 실행자를 가리킨다.
+  devices_dir: devices
+  qa_rounds_dir: qa/rounds
+  handoffs_dir: handoffs
+  workspace_catalog: workspace/repos.json
+roles:
+  contributors: []
+  integrators: []
+  release_owners: []
+team_policy:
+  # These values are the source for authority, working hours, approvals, and
+  # unanswered-thread assignment. Keep them aligned with discord.contact_window
+  # when Discord is enabled; null values force a new project to decide.
+  authorization:
+    issue_required: null
+    chat_grants_authority: null
+    production_deploy_role: null
+    database_write_requires_explicit_authority: null
+    issue_work_roles: null
+  work_hours:
+    timezone: null
+    days: null
+    start_hour: null
+    end_hour: null
+  approval:
+    production_deploy: null
+    high_system_risk: null
+    incident_rollback: null
+  assignment:
+    issue_assignee_required: null
+    unanswered_thread_recipient: null
+    default_responder_alias: null
+discord:
+  enabled: false
+  project_alias: replace-me
+  bot_token_env: DISCORD_BOT_TOKEN
+  runtime_registry: .runtime/participants.json
+  # 사람에게 확인을 요청해도 되는 시간. Discord 를 켜면 반드시 채웁니다.
+  contact_window:
+    timezone: null            # 예: Asia/Seoul
+    days: null                # 예: [mon, tue, wed, thu, fri]
+    start_hour: null          # 예: 10
+    end_hour: null            # 예: 18 (이 시각 정각부터는 보내지 않습니다)
+  default_responder_alias: null
+commands:
+  # A local team validates; it does not deploy from this adapter. deploy_dev
+  # and deploy_production are not part of this profile.
+  validate: "replace-with-project-command"
+ops_profile:
+  stall_forbidden: true
+  inherit: execution.yaml
+  attention_routing:
+    bot_work_must_not_land_on_owner: true
+    our_turn: dispatch_not_escalate_to_owner
+    re_ask_fallback_to_owner: false

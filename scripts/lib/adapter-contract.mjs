@@ -2,11 +2,63 @@
 // the minimum adapter shape in one small, pure function so it can be tested
 // with both a real adapter and a deliberately incomplete one.
 
-const REQUIRED_SECTIONS = [
-  'project', 'workspace', 'roles', 'discord', 'commands', 'guards',
-  'team_policy', 'execution', 'tiers', 'ops_profile',
+// Sections every adapter answers, whichever deployment profile it declares.
+const CORE_SECTIONS = [
+  'project', 'workspace', 'roles', 'discord', 'commands', 'team_policy',
+  'ops_profile',
 ];
+
+// Deployment profile rules. A profile is a directory in profiles/, not a
+// branch, and an adapter names exactly one of them.
+//
+// This table is the machine source: profiles/<name>/profile.yaml is checked
+// against it by scripts/validate.mjs, so the document a person reads and the
+// rule a machine applies cannot drift apart.
+//
+// `required` is a dotted path that must be present. `forbidden` is a dotted
+// path whose presence is an error, because carrying it means the adapter was
+// copied from the other profile and still points at something that does not
+// exist here. `optional` is neither: it is the list a reviewer may expect to
+// see and the validator will not demand.
+const PROFILE_RULES = {
+  server: {
+    sections: [...CORE_SECTIONS, 'guards', 'execution', 'tiers'],
+    required: [
+      'workspace.ssh_home_pattern', 'workspace.branch_pattern',
+      'commands.validate', 'commands.deploy_dev', 'commands.deploy_production',
+      'guards', 'execution', 'tiers',
+    ],
+    optional: ['gateway'],
+    forbidden: ['local_workspace'],
+  },
+  local: {
+    sections: [...CORE_SECTIONS, 'local_workspace'],
+    required: [
+      'workspace.branch_pattern', 'commands.validate', 'local_workspace.devices_dir',
+    ],
+    optional: [
+      'gateway', 'guards',
+      'local_workspace.qa_rounds_dir', 'local_workspace.handoffs_dir',
+      'local_workspace.workspace_catalog',
+    ],
+    forbidden: [
+      'workspace.ssh_home_pattern', 'tiers', 'execution',
+      'commands.deploy_dev', 'commands.deploy_production',
+    ],
+  },
+};
+const PROFILE_NAMES = Object.keys(PROFILE_RULES);
 const POLICY_CONTRACT_VERSION = 1;
+
+/** Is a dotted path present in the adapter? Presence, not truth. */
+function hasPath(value, dotted) {
+  let current = value;
+  for (const key of dotted.split('.')) {
+    if (current === null || typeof current !== 'object' || !Object.hasOwn(current, key)) return false;
+    current = current[key];
+  }
+  return true;
+}
 
 function actualType(value) {
   return Array.isArray(value) ? 'array' : value === null ? 'null' : typeof value;
@@ -212,11 +264,27 @@ function requireGatewayContract(gateway, label) {
  */
 export function assertAdapterContractShape(adapter, label = 'adapter') {
   requireType(adapter, 'object', label);
-  requireKeys(adapter, REQUIRED_SECTIONS, label);
+  requireKeys(adapter, ['profile'], label);
+  requireString(adapter.profile, `${label}.profile`);
+  if (!Object.hasOwn(PROFILE_RULES, adapter.profile)) {
+    throw new Error(`${label}.profile must be one of ${PROFILE_NAMES.join(', ')}, found ${adapter.profile}`);
+  }
+  const rules = PROFILE_RULES[adapter.profile];
+  requireKeys(adapter, rules.sections, label);
   requireKeys(adapter, ['policy_contract_version'], label);
   requireNumber(adapter.policy_contract_version, `${label}.policy_contract_version`);
   if (adapter.policy_contract_version !== POLICY_CONTRACT_VERSION) {
     throw new Error(`${label}.policy_contract_version must be ${POLICY_CONTRACT_VERSION}`);
+  }
+  for (const dotted of rules.required) {
+    if (!hasPath(adapter, dotted)) {
+      throw new Error(`${label}.${dotted} is required by the ${adapter.profile} profile`);
+    }
+  }
+  for (const dotted of rules.forbidden) {
+    if (hasPath(adapter, dotted)) {
+      throw new Error(`${label}.${dotted} is not part of the ${adapter.profile} profile; remove it or declare the other profile`);
+    }
   }
 
   const project = adapter.project;
@@ -226,10 +294,16 @@ export function assertAdapterContractShape(adapter, label = 'adapter') {
     requireString(project[key], `${label}.project.${key}`);
   }
 
+  // A server-profile team shares one host, so every participant has a home on
+  // it and the adapter has to say how those homes are named. A local-profile
+  // team has no such home: the same field there would name a path nobody has.
   const workspace = adapter.workspace;
   requireType(workspace, 'object', `${label}.workspace`);
-  requireKeys(workspace, ['ssh_home_pattern', 'branch_pattern'], `${label}.workspace`);
-  for (const key of ['ssh_home_pattern', 'branch_pattern']) {
+  const workspaceKeys = adapter.profile === 'server'
+    ? ['ssh_home_pattern', 'branch_pattern']
+    : ['branch_pattern'];
+  requireKeys(workspace, workspaceKeys, `${label}.workspace`);
+  for (const key of workspaceKeys) {
     requireString(workspace[key], `${label}.workspace.${key}`);
   }
 
@@ -342,8 +416,26 @@ export function assertAdapterContractShape(adapter, label = 'adapter') {
 
   const commands = adapter.commands;
   requireType(commands, 'object', `${label}.commands`);
-  requireKeys(commands, ['validate', 'deploy_dev', 'deploy_production'], `${label}.commands`);
+  requireKeys(commands, adapter.profile === 'server'
+    ? ['validate', 'deploy_dev', 'deploy_production']
+    : ['validate'], `${label}.commands`);
   requireString(commands.validate, `${label}.commands.validate`);
+
+  // A local-profile team registers the devices that run its work, because a
+  // round is claimed by a device and a claim by an unregistered device names
+  // an executor nobody can find.
+  if (adapter.profile === 'local') {
+    const layout = adapter.local_workspace;
+    requireType(layout, 'object', `${label}.local_workspace`);
+    requireString(layout.devices_dir, `${label}.local_workspace.devices_dir`);
+    for (const key of ['qa_rounds_dir', 'handoffs_dir', 'workspace_catalog']) {
+      if (Object.hasOwn(layout, key) && layout[key] !== null) {
+        requireString(layout[key], `${label}.local_workspace.${key}`);
+      }
+    }
+    assertOpsProfile(adapter, label);
+    return;
+  }
 
   const guards = adapter.guards;
   requireType(guards, 'object', `${label}.guards`);
@@ -407,6 +499,14 @@ export function assertAdapterContractShape(adapter, label = 'adapter') {
     }
   }
 
+  assertOpsProfile(adapter, label);
+}
+
+/**
+ * The attention-routing half of the ops profile. Both profiles answer it:
+ * a team with no deployment target still owes replies to people.
+ */
+function assertOpsProfile(adapter, label) {
   const opsProfile = adapter.ops_profile;
   requireType(opsProfile, 'object', `${label}.ops_profile`);
   requireKeys(opsProfile, ['stall_forbidden', 'inherit', 'attention_routing'], `${label}.ops_profile`);
@@ -426,12 +526,14 @@ export function assertAdapterContractShape(adapter, label = 'adapter') {
 }
 
 export {
+  CORE_SECTIONS,
+  PROFILE_NAMES,
+  PROFILE_RULES,
   DAY_NAMES,
   ISSUE_ALLOWED_PLACEHOLDERS,
   ISSUE_PROJECTION_MARKERS,
   ISSUE_WORK_COMMANDS,
   roleTokenResolves,
-  REQUIRED_SECTIONS,
   normalizeDay,
   requireSchedule,
   requireTimezone,

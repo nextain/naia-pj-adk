@@ -1,0 +1,60 @@
+version: 1
+policy_contract_version: 1
+profile: local
+project:
+  id: example-local
+  repository: example-owner/example-local-project
+  issue_tracker: github
+  default_branch: main
+  integration_branch: main
+workspace:
+  branch_pattern: "issue/<number>-<short-name>"
+local_workspace:
+  devices_dir: devices
+  qa_rounds_dir: qa/rounds
+  handoffs_dir: handoffs
+  workspace_catalog: workspace/repos.json
+roles:
+  contributors: [contributor]
+  integrators: [integrator]
+  release_owners: [release_owner]
+team_policy:
+  authorization:
+    issue_required: true
+    chat_grants_authority: false
+    production_deploy_role: release_owner
+    database_write_requires_explicit_authority: true
+    issue_work_roles: [contributor, integrator, release_owner]
+  work_hours:
+    timezone: UTC
+    days: [mon, tue, wed, thu, fri]
+    start_hour: 9
+    end_hour: 17
+  approval:
+    production_deploy: required
+    high_system_risk: required
+    incident_rollback: without_approval
+  assignment:
+    issue_assignee_required: true
+    unanswered_thread_recipient: last_human_in_thread
+    default_responder_alias: null
+discord:
+  enabled: false
+  project_alias: example-local
+  bot_token_env: DISCORD_BOT_TOKEN
+  runtime_registry: .runtime/participants.json
+  contact_window:
+    timezone: UTC
+    days: [mon, tue, wed, thu, fri]
+    start_hour: 9
+    end_hour: 17
+  default_responder_alias: null
+commands:
+  validate: "node --test"
+ops_profile:
+  stall_forbidden: true
+  inherit: execution.yaml
+  attention_routing:
+    bot_work_must_not_land_on_owner: true
+    our_turn: dispatch_not_escalate_to_owner
+    re_ask_fallback_to_owner: false

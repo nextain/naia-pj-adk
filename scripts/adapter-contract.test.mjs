@@ -3,13 +3,108 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { parseYaml } from './lib/yaml-lite.mjs';
-import { assertAdapterContractShape } from './lib/adapter-contract.mjs';
+import { assertAdapterContractShape, PROFILE_RULES } from './lib/adapter-contract.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
-const adapter = parseYaml(fs.readFileSync(path.join(root, 'projects/example/project.yaml'), 'utf8'));
+const load = (relative) => parseYaml(fs.readFileSync(path.join(root, relative), 'utf8'));
+const adapter = load('projects/example/project.yaml');
+const localAdapter = load('projects/example-local/project.yaml');
 
 test('accepts a complete activated adapter', () => {
   assert.doesNotThrow(() => assertAdapterContractShape(adapter, 'example'));
+});
+
+// --- deployment profiles ----------------------------------------------------
+
+test('the server example still declares the shared-host workspace', () => {
+  assert.equal(adapter.profile, 'server');
+  assert.equal(typeof adapter.workspace.ssh_home_pattern, 'string');
+});
+
+test('accepts a local adapter that has no ssh home, tiers or deploy commands', () => {
+  assert.equal(localAdapter.profile, 'local');
+  assert.equal(localAdapter.workspace.ssh_home_pattern, undefined);
+  assert.equal(localAdapter.tiers, undefined);
+  assert.equal(localAdapter.execution, undefined);
+  assert.equal(localAdapter.commands.deploy_production, undefined);
+  assert.doesNotThrow(() => assertAdapterContractShape(localAdapter, 'example-local'));
+});
+
+test('rejects an adapter that declares no profile', () => {
+  const unprofiled = structuredClone(adapter);
+  delete unprofiled.profile;
+  assert.throws(
+    () => assertAdapterContractShape(unprofiled, 'unprofiled'),
+    /unprofiled is missing the required field: profile/,
+  );
+});
+
+test('rejects an unknown profile name', () => {
+  const wrong = structuredClone(adapter);
+  wrong.profile = 'staging';
+  assert.throws(
+    () => assertAdapterContractShape(wrong, 'wrong-profile'),
+    /wrong-profile\.profile must be one of server, local, found staging/,
+  );
+});
+
+// Carrying a server field into a local adapter is how a copied adapter keeps
+// pointing at a home directory nobody has.
+test('rejects a local adapter that kept the server workspace field', () => {
+  const copied = structuredClone(localAdapter);
+  copied.workspace.ssh_home_pattern = '~/example-local-project';
+  assert.throws(
+    () => assertAdapterContractShape(copied, 'copied-server-field'),
+    /copied-server-field\.workspace\.ssh_home_pattern is not part of the local profile/,
+  );
+});
+
+test('rejects a local adapter that kept deployment tiers', () => {
+  const copied = structuredClone(localAdapter);
+  copied.tiers = structuredClone(adapter.tiers);
+  assert.throws(
+    () => assertAdapterContractShape(copied, 'copied-tiers'),
+    /copied-tiers\.tiers is not part of the local profile/,
+  );
+});
+
+test('rejects a server adapter with no ssh home', () => {
+  const homeless = structuredClone(adapter);
+  delete homeless.workspace.ssh_home_pattern;
+  assert.throws(
+    () => assertAdapterContractShape(homeless, 'homeless'),
+    /homeless\.workspace\.ssh_home_pattern is required by the server profile/,
+  );
+});
+
+test('rejects a local adapter with no device registry', () => {
+  const unregistered = structuredClone(localAdapter);
+  delete unregistered.local_workspace.devices_dir;
+  assert.throws(
+    () => assertAdapterContractShape(unregistered, 'unregistered'),
+    /unregistered\.local_workspace\.devices_dir is required by the local profile/,
+  );
+});
+
+// Both profiles owe replies to people, so neither may route bot work at the
+// release owner.
+test('both profiles keep the neutral attention routing', () => {
+  for (const [label, candidate] of [['example', adapter], ['example-local', localAdapter]]) {
+    const routed = structuredClone(candidate);
+    routed.ops_profile.attention_routing.bot_work_must_not_land_on_owner = 'yes';
+    assert.throws(
+      () => assertAdapterContractShape(routed, label),
+      /bot_work_must_not_land_on_owner must be boolean/,
+    );
+  }
+});
+
+test('no dotted path is both required and forbidden in a profile', () => {
+  for (const [name, rules] of Object.entries(PROFILE_RULES)) {
+    for (const dotted of rules.forbidden) {
+      assert.ok(!rules.required.includes(dotted), `${name} cannot require and forbid ${dotted}`);
+    }
+  }
 });
 
 test('accepts a reachable tier with a named deployer', () => {

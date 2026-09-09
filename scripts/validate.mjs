@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { parseYaml, at } from './lib/yaml-lite.mjs';
-import { assertAdapterContractShape } from './lib/adapter-contract.mjs';
+import { assertAdapterContractShape, PROFILE_NAMES, PROFILE_RULES } from './lib/adapter-contract.mjs';
 import { validateNativeCommandContract } from './native-command-validator.mjs';
 
 // Structure validation reads the contracts as data.
@@ -51,9 +51,24 @@ const required = [
   '.agents/context/project-policy.yaml',
   '.agents/context/workflow.yaml',
   '.agents/context/execution.yaml',
+  '.agents/context/messaging.yaml',
   '.agents/context/development-method.yaml',
   '.agents/context/discord.yaml',
+  'profiles/README.ko.md',
+  'profiles/server/profile.yaml',
+  'profiles/server/README.ko.md',
+  'profiles/server/context/execution.yaml',
+  'profiles/local/profile.yaml',
+  'profiles/local/README.ko.md',
+  'profiles/local/context/qa-rounds.yaml',
+  'profiles/local/scripts/qa-round.mjs',
+  'profiles/local/scripts/qa-round.test.mjs',
+  'profiles/local/scripts/workspace.mjs',
+  'profiles/local/workspace/repos.json',
+  'profiles/local/devices/README.ko.md',
+  'profiles/local/handoffs/README.ko.md',
   'projects/_template/project.yaml',
+  'projects/_template-local/project.yaml',
   'docs/WORKSPACE.ko.md',
   'data-branch/README.md',
   'data-branch/_template/AGENTS.md',
@@ -121,22 +136,15 @@ for (const [index, transition] of workflow.transitions.entries()) {
   }
 }
 
+// The neutral core. Nothing here may assume a shared deployment target: a
+// local-profile team answers this file and nothing else in execution.
 const execution = contract('.agents/context/execution.yaml');
 requireKeys(execution, [
-  'deploy_gate', 'artifact', 'propagation', 'verification', 'rollback',
-  'concurrency', 'drift', 'watchdog', 'environment_tiers', 'completion',
-  'ops_profile',
+  'ops_profile', 'confirmation_request', 'acknowledgement', 'watchdog',
+  'completion',
 ], 'execution contract');
 if (at(execution, 'ops_profile', 'stall_forbidden') !== true) {
   throw new Error('execution contract must forbid stalling a thread to wait for a safe read or a non-critical user-visible deploy');
-}
-if (!Array.isArray(at(execution, 'ops_profile', 'proceed_without_approval'))
-    || at(execution, 'ops_profile', 'proceed_without_approval').length === 0) {
-  throw new Error('execution contract must name what may proceed without approval');
-}
-if (!Array.isArray(at(execution, 'ops_profile', 'requires_approval'))
-    || at(execution, 'ops_profile', 'requires_approval').length === 0) {
-  throw new Error('execution contract must name what still requires approval');
 }
 if (at(execution, 'ops_profile', 'attention_routing', 'bot_work_must_not_land_on_owner') !== true) {
   throw new Error('execution contract must keep bot work off the owner inbox');
@@ -146,6 +154,21 @@ if (at(execution, 'ops_profile', 'attention_routing', 're_ask_fallback_to_owner'
 }
 if (at(execution, 'ops_profile', 'attention_routing', 'collaborator_ok_on_non_owner_gated') !== true) {
   throw new Error('execution contract must not void a collaborator ok on work that does not need the owner');
+}
+// A request that names nobody notifies nobody, and one with no return address
+// produces an answer the asker never reads.
+for (const field of ['who', 'what', 'where_exactly', 'where_to_report_back']) {
+  if (!(at(execution, 'confirmation_request', 'required_fields') ?? []).includes(field)) {
+    throw new Error(`execution contract must make a confirmation request name ${field}`);
+  }
+}
+if (at(execution, 'confirmation_request', 'quoted_text_mentions') !== 'neutralized') {
+  throw new Error('execution contract must neutralize calls inside quoted text');
+}
+// Posting, receiving and starting are three events.
+if (!Array.isArray(at(execution, 'acknowledgement', 'not_acknowledgement'))
+    || at(execution, 'acknowledgement', 'not_acknowledgement').length === 0) {
+  throw new Error('execution contract must name what does not count as an acknowledgement');
 }
 if (at(execution, 'watchdog', 'pending_human_response', 're_ask_fallback') !== 'none') {
   throw new Error('execution contract must not fall back a re-ask to a default owner');
@@ -178,11 +201,95 @@ if (at(contactWindow, 'outside_window') !== 'defer_without_counting') {
 if (!Array.isArray(at(contactWindow, 'never_gated')) || at(contactWindow, 'never_gated').length === 0) {
   throw new Error('execution contract must name what a contact window never delays');
 }
-if (at(execution, 'artifact', 'server_source_mount') !== 'forbidden') {
-  throw new Error('execution contract must keep server source mounts forbidden');
+// A deployment rule in the neutral core is a rule a local team is asked to
+// answer with a null, which reads as answered. Keep the halves apart.
+for (const section of ['deploy_gate', 'artifact', 'propagation', 'rollback', 'concurrency', 'drift', 'environment_tiers']) {
+  if (Object.hasOwn(execution, section)) {
+    throw new Error(`execution contract must leave ${section} to profiles/server/context/execution.yaml`);
+  }
 }
-if (at(execution, 'rollback', 'must_be_materialized_before_change') !== true) {
-  throw new Error('execution contract must keep rollback materialized before the change');
+
+// --- messaging ownership ----------------------------------------------------
+
+// One gateway implementation, or the same defect is fixed once per instance and
+// left in place everywhere else.
+const messaging = contract('.agents/context/messaging.yaml');
+requireKeys(messaging, ['provider', 'transports', 'instance_holds', 'instance_must_not_hold'], 'messaging contract');
+if (at(messaging, 'provider', 'package') !== 'naia-messaging') {
+  throw new Error('messaging contract must name naia-messaging as the provider package');
+}
+if (at(messaging, 'instance_holds') !== 'configuration_only') {
+  throw new Error('messaging contract must keep an instance to configuration only');
+}
+for (const forbidden of ['gateway_code', 'watchdog_scripts']) {
+  if (!(at(messaging, 'instance_must_not_hold') ?? []).includes(forbidden)) {
+    throw new Error(`messaging contract must keep ${forbidden} out of an instance`);
+  }
+}
+
+// --- deployment profiles ----------------------------------------------------
+
+// A profile is a directory here, never a branch: a branch would take a common
+// contract improvement into one side and leave the other behind.
+//
+// profile.yaml is what a person reads and PROFILE_RULES is what the validator
+// applies. Comparing them is the only thing that keeps the document from
+// quietly describing a rule that is no longer enforced.
+for (const name of PROFILE_NAMES) {
+  const manifest = contract(`profiles/${name}/profile.yaml`);
+  requireKeys(manifest, ['profile', 'meaning', 'contracts', 'adapter_fields'], `profile ${name}`);
+  if (manifest.profile !== name) {
+    throw new Error(`profiles/${name}/profile.yaml declares profile ${manifest.profile}`);
+  }
+  const declared = manifest.adapter_fields;
+  requireType(declared, 'object', `profile ${name} adapter_fields`);
+  for (const key of ['sections', 'required', 'optional', 'forbidden']) {
+    requireType(declared[key], 'array', `profile ${name} adapter_fields.${key}`);
+    const expected = PROFILE_RULES[name][key];
+    if (declared[key].length !== expected.length || declared[key].some((item, index) => item !== expected[index])) {
+      throw new Error(`profiles/${name}/profile.yaml adapter_fields.${key} disagrees with the adapter contract`);
+    }
+  }
+  if (at(manifest, 'contracts', 'core') !== '.agents/context/execution.yaml') {
+    throw new Error(`profiles/${name}/profile.yaml must inherit the neutral core contract`);
+  }
+}
+
+const serverExecution = contract('profiles/server/context/execution.yaml');
+requireKeys(serverExecution, [
+  'deploy_gate', 'artifact', 'propagation', 'verification', 'rollback',
+  'concurrency', 'drift', 'environment_tiers', 'ops_profile', 'server_workspace',
+], 'server profile execution contract');
+if (!Array.isArray(at(serverExecution, 'ops_profile', 'proceed_without_approval'))
+    || at(serverExecution, 'ops_profile', 'proceed_without_approval').length === 0) {
+  throw new Error('server profile contract must name what may proceed without approval');
+}
+if (!Array.isArray(at(serverExecution, 'ops_profile', 'requires_approval'))
+    || at(serverExecution, 'ops_profile', 'requires_approval').length === 0) {
+  throw new Error('server profile contract must name what still requires approval');
+}
+if (at(serverExecution, 'artifact', 'server_source_mount') !== 'forbidden') {
+  throw new Error('server profile contract must keep server source mounts forbidden');
+}
+if (at(serverExecution, 'rollback', 'must_be_materialized_before_change') !== true) {
+  throw new Error('server profile contract must keep rollback materialized before the change');
+}
+if (at(serverExecution, 'server_workspace', 'adapter_field') !== 'workspace.ssh_home_pattern') {
+  throw new Error('server profile contract must bind the shared-host home to workspace.ssh_home_pattern');
+}
+
+const qaRounds = contract('profiles/local/context/qa-rounds.yaml');
+requireKeys(qaRounds, ['round', 'bundle', 'claim', 'receipts', 'verdicts', 'ledger', 'close'], 'local profile qa-round contract');
+if (at(qaRounds, 'claim', 'is') !== '수신 확인') {
+  throw new Error('local profile contract must make a claim the acknowledgement');
+}
+if (!(at(qaRounds, 'receipts', 'start', 'required') ?? []).includes('pid')) {
+  throw new Error('local profile contract must make a start receipt carry the runner PID');
+}
+for (const verdict of ['PASS', 'FAIL', 'BLOCKED', 'NOT_RUN']) {
+  if (!(at(qaRounds, 'verdicts', 'allowed') ?? []).includes(verdict)) {
+    throw new Error(`local profile contract must allow the verdict ${verdict}`);
+  }
 }
 
 const method = contract('.agents/context/development-method.yaml');
@@ -202,6 +309,18 @@ if (at(method, 'completion', 'ai_may_not_declare_completion') !== true) {
 // The license, the package metadata and the declared visibility are three
 // statements about the same fact. A repository described as ready to open while
 // its license forbids copying is not ready; it is inconsistent.
+// Identity is three statements: what the repository is called, where it lives,
+// and whether it is open. A declared visibility that disagrees with GitHub is
+// worse than no declaration, because the index gets believed instead of the
+// repository.
+for (const field of ['name', 'repository', 'visibility']) {
+  if (typeof at(policy, 'identity', field) !== 'string' || at(policy, 'identity', field).trim() === '') {
+    throw new Error(`project policy identity must declare ${field}`);
+  }
+}
+if (!/^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9._-]+$/.test(at(policy, 'identity', 'repository'))) {
+  throw new Error('project policy identity.repository must be owner/name');
+}
 const visibility = at(policy, 'identity', 'visibility');
 const packageJson = JSON.parse(read('package.json'));
 const license = read('LICENSE');
@@ -248,19 +367,40 @@ if (!contactWindowEntrypoint.includes('policy-guard.mjs')
 
 // --- project template and activated adapters --------------------------------
 
-const template = contract('projects/_template/project.yaml');
-requireKeys(template, [
-  'project', 'workspace', 'roles', 'discord', 'commands', 'guards',
-  'team_policy', 'execution', 'tiers', 'ops_profile',
-], 'project template');
-if (template.policy_contract_version !== 1) {
-  throw new Error('project template must opt into policy_contract_version 1');
+// A new project copies a template, so a template that declares no profile
+// hands every copy the same missing declaration.
+const TEMPLATES = { server: 'projects/_template/project.yaml', local: 'projects/_template-local/project.yaml' };
+const templates = {};
+for (const [name, relative] of Object.entries(TEMPLATES)) {
+  const parsed = contract(relative);
+  templates[name] = parsed;
+  if (parsed.profile !== name) {
+    throw new Error(`${relative} must declare profile: ${name}`);
+  }
+  requireKeys(parsed, PROFILE_RULES[name].sections, `${name} project template`);
+  if (parsed.policy_contract_version !== 1) {
+    throw new Error(`${name} project template must opt into policy_contract_version 1`);
+  }
+  if (at(parsed, 'ops_profile', 'stall_forbidden') !== true) {
+    throw new Error(`${name} project template must forbid stalling a thread on a bounded production read`);
+  }
+  for (const dotted of PROFILE_RULES[name].forbidden) {
+    let current = parsed;
+    let present = true;
+    for (const key of dotted.split('.')) {
+      if (current === null || typeof current !== 'object' || !Object.hasOwn(current, key)) { present = false; break; }
+      current = current[key];
+    }
+    if (present) throw new Error(`${relative} carries ${dotted}, which the ${name} profile forbids`);
+  }
 }
+
+const { server: template, local: localTemplate } = templates;
 if (at(template, 'guards', 'production_requires_issue_approval') !== true) {
   throw new Error('project template must require issue approval for production');
 }
-if (at(template, 'ops_profile', 'stall_forbidden') !== true) {
-  throw new Error('project template must forbid stalling a thread on a bounded production read');
+if (at(localTemplate, 'local_workspace', 'devices_dir') === undefined) {
+  throw new Error('the local project template is missing local_workspace.devices_dir');
 }
 
 // Every execution command an adapter must answer. Checking only three of them
@@ -277,13 +417,15 @@ const PER_TIER_COMMANDS = ['reload_command', 'cache_invalidation_command', 'serv
 // A new project copies this template, so anything an onboarding step must answer
 // has to exist here as an unfilled field rather than be remembered by a person.
 const CONTACT_WINDOW_KEYS = ['timezone', 'days', 'start_hour', 'end_hour'];
-for (const key of CONTACT_WINDOW_KEYS) {
-  if (at(template, 'discord', 'contact_window', key) === undefined) {
-    throw new Error(`project template is missing discord.contact_window.${key}`);
+for (const [name, parsed] of Object.entries(templates)) {
+  for (const key of CONTACT_WINDOW_KEYS) {
+    if (at(parsed, 'discord', 'contact_window', key) === undefined) {
+      throw new Error(`${name} project template is missing discord.contact_window.${key}`);
+    }
   }
-}
-if (at(template, 'discord', 'default_responder_alias') === undefined) {
-  throw new Error('project template is missing discord.default_responder_alias');
+  if (at(parsed, 'discord', 'default_responder_alias') === undefined) {
+    throw new Error(`${name} project template is missing discord.default_responder_alias`);
+  }
 }
 
 const TEAM_POLICY_KEYS = {
@@ -295,19 +437,21 @@ const TEAM_POLICY_KEYS = {
   approval: ['production_deploy', 'high_system_risk', 'incident_rollback'],
   assignment: ['issue_assignee_required', 'unanswered_thread_recipient', 'default_responder_alias'],
 };
-for (const [section, keys] of Object.entries(TEAM_POLICY_KEYS)) {
-  if (at(template, 'team_policy', section) === undefined) {
-    throw new Error(`project template is missing team_policy.${section}`);
-  }
-  for (const key of keys) {
-    if (at(template, 'team_policy', section, key) === undefined) {
-      throw new Error(`project template is missing team_policy.${section}.${key}`);
+for (const [name, parsed] of Object.entries(templates)) {
+  for (const [section, keys] of Object.entries(TEAM_POLICY_KEYS)) {
+    if (at(parsed, 'team_policy', section) === undefined) {
+      throw new Error(`${name} project template is missing team_policy.${section}`);
+    }
+    for (const key of keys) {
+      if (at(parsed, 'team_policy', section, key) === undefined) {
+        throw new Error(`${name} project template is missing team_policy.${section}.${key}`);
+      }
     }
   }
-}
-for (const roleGroup of ['contributors', 'integrators', 'release_owners']) {
-  if (!Array.isArray(at(template, 'roles', roleGroup))) {
-    throw new Error(`project template must declare roles.${roleGroup} as an array`);
+  for (const roleGroup of ['contributors', 'integrators', 'release_owners']) {
+    if (!Array.isArray(at(parsed, 'roles', roleGroup))) {
+      throw new Error(`${name} project template must declare roles.${roleGroup} as an array`);
+    }
   }
 }
 
@@ -334,7 +478,9 @@ for (const tier of ['development', 'production']) {
 
 const projectsDir = path.join(root, 'projects');
 for (const entry of fs.readdirSync(projectsDir, { withFileTypes: true })) {
-  if (!entry.isDirectory() || entry.name === '_template') continue;
+  // Every underscore-prefixed directory is scaffolding to copy, not an
+  // activated adapter; the templates are checked above with their own rules.
+  if (!entry.isDirectory() || entry.name.startsWith('_')) continue;
   const relative = path.join('projects', entry.name, 'project.yaml');
   if (!fs.existsSync(path.join(root, relative))) throw new Error(`adapter ${entry.name} has no project.yaml`);
   const adapter = contract(relative);
