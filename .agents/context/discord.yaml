@@ -10,7 +10,7 @@ identity:
   examples: ["[contributor/example]", "[integrator/example]"]
 routing:
   channel_thread:
-    key: github_issue_number
+    key: github_repository_and_issue_number
     purpose: [status, discussion, artifact_delivery, review_request]
   direct_message:
     key: discord_sender_id
@@ -158,3 +158,28 @@ gateway_monitoring:
     perfectly_regular_repeated_failure: suspect_never_succeeded
 audit:
   issue_records: [requester_alias, thread_reference, job_id, result_summary, commit_or_artifact_reference]
+
+issue_lifecycle:
+  implementation: ops/gateway/issue_lifecycle.py
+  canonical_key: owner/repository#number
+  repository_source: project_adapter_allowlist
+  resolution_order: [trusted_thread_binding, unique_explicit_repository_reference, unique_existing_bare_number]
+  ambiguous_identity: refuse_enrollment_and_dispatch
+  thread_title: canonical_key_then_human_summary
+  synthetic_prompt_as_title: forbidden
+  parent_channel_auto_dispatch: forbidden
+  auxiliary_thread_auto_enrollment: forbidden
+  independent_states: [github_issue, followup, execution, thread_archive, delivery]
+  worker_completion: followup_pending_unless_deliberately_resolved_or_waiting_for_human
+  previous_key_matching: requires_same_thread_binding
+  conversation_message_types: [0, 19]
+  system_events_clear_owed_reply: false
+  tracker_writes: lock_read_modify_write_then_fsync_and_atomic_replace
+  adoption: explicit_adapter_migration_and_live_verification_required
+  metadata_repair:
+    audit_is_read_only: true
+    preserve: [messages, canonical_binding, deliberate_human_resolution]
+    precondition: compare_current_metadata_and_last_message_with_reviewed_preimage
+    archived_rename: unarchive_then_rename_then_restore_archive
+    rate_limit: honor_retry_after_then_revalidate_preconditions
+    rollback: record_each_applied_step_and_compare_before_restoring
