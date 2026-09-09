@@ -1,0 +1,44 @@
+# local 프로파일 선언. 사람이 읽는 설명은 profiles/local/README.ko.md.
+#
+# adapter_fields 는 scripts/lib/adapter-contract.mjs 의 PROFILE_RULES 와 같아야
+# 하고, scripts/validate.mjs 가 둘을 대조한다.
+version: 1
+profile: local
+meaning: >
+  A team whose members each clone the product repositories onto their own
+  machine. There is no shared host, no server home directory and no deployment
+  tier, so the queue that carries work between devices is the repository
+  itself.
+placement: 개인 ADK 의 projects/ 아래, 제품 저장소와 형제
+contracts:
+  core: .agents/context/execution.yaml
+  profile: profiles/local/context/qa-rounds.yaml
+components:
+  - path: devices/
+    role: 기기 등록부. 회차 레인 하나가 기기 하나다
+  - path: scripts/qa-round.mjs
+    role: 저장소를 큐로 쓰는 회차 집행기. claim 이 수신 확인이고 시작 영수증이 시작이다
+  - path: scripts/workspace.mjs
+    role: 형제 배치 점검. 제품 저장소를 ../<id> 에 독립 clone 으로 두었는지 본다
+  - path: workspace/repos.json
+    role: 저장소 목록. 버전 고정이 아니라 목록이다
+  - path: handoffs/
+    role: 세션과 기기를 넘는 인계 기록
+adapter_fields:
+  sections: [project, workspace, roles, discord, commands, team_policy, ops_profile, local_workspace]
+  required:
+    - workspace.branch_pattern
+    - commands.validate
+    - local_workspace.devices_dir
+  optional:
+    - gateway
+    - guards
+    - local_workspace.qa_rounds_dir
+    - local_workspace.handoffs_dir
+    - local_workspace.workspace_catalog
+  forbidden:
+    - workspace.ssh_home_pattern
+    - tiers
+    - execution
+    - commands.deploy_dev
+    - commands.deploy_production

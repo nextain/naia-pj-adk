@@ -1,0 +1,51 @@
+# QA 회차 프로토콜. local 프로파일 모듈.
+#
+# 집행은 profiles/local/scripts/qa-round.mjs 이고, 인스턴스는 이 파일을
+# .agents/context/qa-rounds.yaml 로 복사해 자기 계약으로 삼는다.
+#
+# 서버 한 대를 공유하지 않는 팀은 일을 넘길 자리가 없다. 채팅으로 넘기면
+# 넘겼다는 사실만 남고 시작했는지는 남지 않는다. 그래서 큐를 저장소에 둔다.
+version: 1
+round:
+  unit: qa/rounds/<round-id>/
+  catalog: 회차를 열 때 고정한다. 해시가 round.json 에 기록되며 이후 수정은 거부된다
+  candidates: 제품 저장소별 정확한 commit SHA 를 round.json 에 적는다. 가능하면 바이너리 SHA256 도 함께 적는다
+  lanes: 레인 하나가 기기 하나다. 기기와 플랫폼을 짝지어 적고, 같은 앱 화면을 두 실행자가 동시에 만지지 않는다
+bundle:
+  definition: 같은 앱 수명주기 안에서 이어서 돌릴 수 있는 케이스 묶음
+  lifecycle: [shared-app, restart, reset]
+  rule: 실제 재시작이나 종료나 리셋이 필요한 방법만 별도 묶음으로 나눈다. 평평한 배열로 앱을 매번 새로 띄우지 않는다
+claim:
+  is: 수신 확인
+  file: claims/<device>/<bundle>.json
+  fields: [round, bundle, platform, device, session, claimedAt, expiresAt, attempt]
+  rule: 만료 전 claim 이 있는 묶음은 다른 세션이 가져가지 못한다. 만료되면 누구나 다시 가져간다
+receipts:
+  start:
+    file: receipts/<device>/<bundle>/attempt-<n>/start.json
+    required: [pid, startedAt]
+    optional: [command, binarySha256]
+  end:
+    file: receipts/<device>/<bundle>/attempt-<n>/end.json
+    required: [results, endedAt]
+    each_result: [case, verdict, reason_if_not_pass, evidence]
+  rule: 시작 영수증 없는 결과는 증거가 아니다. claim 을 낸 세션만 그 시도의 영수증을 쓴다
+verdicts:
+  allowed: [PASS, FAIL, BLOCKED, NOT_RUN]
+  PASS: 원래 방법 전체를 실제 제품에서 관찰했다. reporter 통과나 조기 return 이나 skip 이나 fixture 주입은 PASS 가 아니다
+  FAIL: 방법을 끝까지 돌렸고 예상 결과와 달랐다
+  BLOCKED: 방법 본문에 들어가기 전 선행조건이 막았다. 이유를 적는다
+  NOT_RUN: 아직 관찰하지 않았다. 매핑이 없다는 이유로 BLOCKED 로 바꾸지 않는다
+ledger:
+  file: ledger.json
+  rule: 영수증에서만 도출한다. 손으로 고치지 않는다. 늦은 결과는 최신 정상 판정을 덮지 않는다
+  platforms_are_not_summed: 플랫폼마다 대상 범위가 다르면 합산하지 않는다
+close:
+  condition: 모든 묶음과 플랫폼 짝에 종료 영수증이 있다. 강제 마감은 force 옵션과 이슈에 적은 사유가 필요하다
+  then: triage 에서 제품과 환경과 테스트와 하네스 결함을 나누고 수리 소유권을 배정한다
+forbidden_during_round:
+  - 실패를 발견할 때마다 고치고 재시도하는 루프
+  - 회차 중 하네스나 감시기 수정과 배포
+  - 조정자의 직접 실행과 직접 집계
+  - 배정할 때 heartbeat 를 손으로 적는 것
+  - 시도한 묶음을 다시 고르는 것. 영수증을 먼저 대조한다
