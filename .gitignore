@@ -16,3 +16,7 @@ coverage/
 .agents/session-contracts/
 .agents/harness/
 .agents/progress/*.local.*
+
+# Python gateway helper caches
+__pycache__/
+*.pyc
