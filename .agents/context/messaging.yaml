@@ -1,0 +1,27 @@
+# 메시징 계층 소속. 배치 프로파일과 무관하게 두 프로파일이 함께 지킨다.
+#
+# 게이트웨이 코드가 인스턴스마다 하나씩 있으면 같은 결함을 인스턴스 수만큼
+# 고치게 되고, 한 곳만 고친 채 나머지는 조용히 옛 동작으로 남는다.
+version: 1
+provider:
+  package: naia-messaging
+  repository: nextain/naia-messaging
+  status: planned
+transports:
+  today: discord
+  later: own_messenger
+core_is_transport_neutral: true
+core_concerns:
+  - participants_and_identity
+  - threads_bound_to_a_work_item
+  - acknowledgement_and_reply_judgement
+  - confirmation_request_format
+  - attention_routing
+  - contact_window
+  - watchdog
+instance_holds: configuration_only
+instance_must_not_hold: [gateway_code, watchdog_scripts]
+rule: >
+  Messaging (Discord today, own messenger later) is provided by the
+  naia-messaging package; instances hold configuration only, never gateway code
+  or watchdog scripts.
