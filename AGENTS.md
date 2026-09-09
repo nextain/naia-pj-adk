@@ -9,19 +9,21 @@ Before acting, read:
 1. `.agents/context/project-policy.yaml`
 2. `.agents/context/workflow.yaml`
 3. `.agents/context/development-method.yaml` before scoping or building anything
-4. `.agents/context/execution.yaml` before any build, deployment, or verification
-5. `.agents/context/discord.yaml` when Discord is involved
-6. `projects/<project>/project.yaml` and its `AGENTS.md` before project work
-7. `docs/WORKSPACE.ko.md` for directory layout
-8. `data-branch/<current-git-branch>/AGENTS.md` when that file exists. `/` in the branch name is a directory. `AGENTS.md` and `CLAUDE.md` in the same folder must be identical. If missing, read `data-branch/_template/` only.
+4. `.agents/context/execution.yaml` before any build or verification. It is deployment-neutral and both profiles answer it.
+5. `profiles/<profile>/README.ko.md` and `profiles/<profile>/profile.yaml` for the profile the adapter declares, and the contracts that profile names: `profiles/server/context/execution.yaml` before any deployment, `profiles/local/context/qa-rounds.yaml` before opening or running a round.
+6. `.agents/context/messaging.yaml` and `.agents/context/discord.yaml` when Discord is involved
+7. `projects/<project>/project.yaml` and its `AGENTS.md` before project work
+8. `docs/WORKSPACE.ko.md` for directory layout
+9. `data-branch/<current-git-branch>/AGENTS.md` when that file exists, on a server-profile project. `/` in the branch name is a directory. `AGENTS.md` and `CLAUDE.md` in the same folder must be identical. If missing, read `data-branch/_template/` only.
 
 ## Non-negotiable rules
 
+- Every adapter declares one deployment profile, `server` or `local`, and the validator applies only that profile's requirements. A profile is a directory under `profiles/`, never a branch. A server adapter names a home on the shared host, deployment tiers and deploy commands; a local adapter names none of those and registers the devices that run its work instead. Carrying a field from the other profile is an error, not a leftover.
 - Every work item starts from a GitHub issue. The issue is the durable source of truth for scope, decisions, validation, merge, deployment, and rollback.
-- Code work happens in each participant's SSH workspace using an issue branch. Codex and Claude inherit the same repository rules.
+- On a server-profile project, code work happens in each participant's SSH workspace on the shared host, using an issue branch. On a local-profile project it happens in that participant's own clone, and work moves between devices through the queue in the repository: a claim is the acknowledgement, a start receipt is the start, and a posted message is neither. Codex and Claude inherit the same repository rules.
 - `projects/<project>/project.yaml` `team_policy` is the machine-checked source for issue authority, working hours, approval gates, and unanswered-thread assignment. Keep it aligned with the Discord contact window.
 - Never infer merge, deployment, database, secret, or production authority from a Discord message or from access to a coding tool.
-- Discord is a coordination surface. Use one bot token and one gateway consumer per project, and one thread per GitHub issue.
+- Discord is a coordination surface. Use one bot token and one gateway consumer per project, and one thread per GitHub issue. Messaging is provided by the `naia-messaging` package; an instance holds configuration only, never gateway code or watchdog scripts.
 - A direct message selects the sender's registered workspace but grants no additional authority.
 - Never store tokens, passwords, personal Discord IDs, private hostnames, IP addresses, customer data, or production topology in tracked files. Use ignored runtime configuration and placeholders.
 - Do not copy requirements, progress records, logs, examples, or Git history from another project unless each item is intentionally adopted and safe for this repository.
@@ -38,7 +40,7 @@ Before acting, read:
 
 ## Project boundary
 
-Generic contracts live in `.agents/context/`, reusable project scaffolding in `projects/_template/`, and project-specific facts only in `projects/<project>/`. Product git clones live in gitignored `checkouts/`, never next to adapters. Branch-specific agent context lives in `data-branch/`. Execution evidence belongs in GitHub issues; `.agents/progress/` contains only sanitized local review artifacts.
+Deployment-neutral contracts live in `.agents/context/`, per-profile contracts and modules in `profiles/<profile>/`, reusable project scaffolding in `projects/_template/` and `projects/_template-local/`, and project-specific facts only in `projects/<project>/`. A contract that assumes a shared deployment target belongs in the server profile: asking a local team to answer it produces an adapter full of nulls that reads as answered. Product git clones live in gitignored `checkouts/`, never next to adapters. Branch-specific agent context lives in `data-branch/`. Execution evidence belongs in GitHub issues; `.agents/progress/` contains only sanitized local review artifacts.
 
 `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` are byte-identical. Change one, change the others. `CODEX.md` is a short pointer only.
 

@@ -2,7 +2,9 @@
 
 `WORKFLOW.ko.md` 는 누가 무엇을 하는지 정합니다. 이 문서는 **기계가 무엇을 거절해야 하는지**를 정합니다. 둘은 다른 문서입니다. 절차만 있는 프로젝트는, 잘 쓰인 기록 한 장으로 망가진 배포를 통과시킬 수 있습니다.
 
-계약 원문은 `.agents/context/execution.yaml` 이고, 프로젝트가 채워야 할 자리는 `projects/<프로젝트>/project.yaml` 의 `execution` 과 `tiers` 입니다. 운영 읽기·장애 배포를 승인 없이 해도 되는지는 같은 파일의 `ops_profile` 과 [운영 프로파일](OPS-PROFILE.ko.md)이 정합니다.
+이 문서는 server 프로파일의 계약입니다. 계약 원문은 `profiles/server/context/execution.yaml` 이고, 프로젝트가 채워야 할 자리는 `projects/<프로젝트>/project.yaml` 의 `execution` 과 `tiers` 입니다. 운영 읽기·장애 배포를 승인 없이 해도 되는지는 같은 파일의 `ops_profile` 과 [운영 프로파일](OPS-PROFILE.ko.md)이 정합니다.
+
+사람에게 답을 재촉하는 방식, 확인 요청의 형식, 수신 확인의 정의, AI가 완료를 선언하지 않는다는 규칙은 배치와 무관하므로 `.agents/context/execution.yaml` 에 남아 있고 두 프로파일이 함께 지킵니다. 배포 대상이 없는 팀은 이 문서의 계약을 답하지 않습니다. 나누기 전에는 그런 팀도 배포 게이트를 `null` 로 채웠고, `null` 로 채워진 계약은 답한 것처럼 보였습니다. local 프로파일이 대신 답하는 것은 [local 프로파일](../profiles/local/README.ko.md)에 있습니다.
 
 ## 이 계약이 존재하는 이유
 
@@ -142,7 +144,8 @@
 
 ## 새 프로젝트를 붙일 때
 
-1. `projects/_template/` 를 복사해 프로젝트 사실을 채웁니다.
+0. 배치 프로파일을 먼저 정합니다. 서버 한 대를 공유하면 server, 각자 자기 기기에서 clone 받아 일하면 local 입니다. local 이면 아래 3·4·6 은 해당하지 않고 [local 프로파일](../profiles/local/README.ko.md)의 채택 절차를 따릅니다.
+1. `projects/_template/` 를 복사해 프로젝트 사실을 채웁니다. `profile: server` 가 이미 적혀 있습니다.
 2. Discord 를 켠다면 `discord.contact_window` 의 표준시간대·요일·시각을 채웁니다. `default_responder_alias` 는 비워 두는 것이 기본입니다. 비우면 확인 재촉이 배포 담당자에게 기본 낙하하지 않습니다. 개인 식별자는 여기 적지 않고 추적하지 않는 등록부에 둡니다.
 3. `execution` 의 명령들을 실제로 만듭니다. 만들기 전에는 그 대상에 배포하지 않습니다.
 4. 각 명령이 **실패해야 할 때 실패하는지** 한 번씩 깨뜨려서 확인합니다. 통과만 확인한 게이트는 통과만 하는 게이트일 수 있습니다.
