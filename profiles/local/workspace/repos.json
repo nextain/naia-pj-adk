@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "kind": "repository-catalog-not-version-lock",
+  "layout": "siblings",
+  "owner": "example-owner",
+  "hub": "example-hub",
+  "note": "Template catalog for the local profile. An instance replaces owner, hub and repositories with its own, keeps every path as ../<id>, and records the exact SHA combination of a round in qa/rounds/<round>/round.json rather than here.",
+  "repositories": [
+    {
+      "id": "example-app",
+      "repository": "example-owner/example-app",
+      "path": "../example-app",
+      "branch": "main",
+      "visibility": "public",
+      "purpose": "user-facing application; the surface a QA round exercises"
+    },
+    {
+      "id": "example-service",
+      "repository": "example-owner/example-service",
+      "path": "../example-service",
+      "branch": "main",
+      "visibility": "public",
+      "purpose": "backing service the application talks to"
+    }
+  ],
+  "pairing": {
+    "repository": "example-app",
+    "file": "pairing.json",
+    "expects": {
+      "serviceCommit": "example-service"
+    }
+  },
+  "profiles": {
+    "coordination": [],
+    "app": ["example-app", "example-service"]
+  }
+}

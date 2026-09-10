@@ -4,8 +4,9 @@
   "private": false,
   "description": "Team-and-project-centered AI collaboration ADK",
   "scripts": {
-    "test": "npm run test:adapter-contract && npm run test:policy-guard && npm run test:native-command && npm run test:project-policy-bridge && node scripts/validate.mjs && bash ops/gateway/selftest.sh && node scripts/public-safety-scan.mjs",
+    "test": "npm run test:adapter-contract && npm run test:qa-round && npm run test:policy-guard && npm run test:native-command && npm run test:project-policy-bridge && node scripts/validate.mjs && bash ops/gateway/selftest.sh && node scripts/public-safety-scan.mjs",
     "test:adapter-contract": "node scripts/adapter-contract.test.mjs",
+    "test:qa-round": "node profiles/local/scripts/qa-round.test.mjs",
     "test:policy-guard": "node scripts/policy-guard.test.mjs",
     "test:native-command": "node scripts/native-command-validator.test.mjs",
     "validate:participants": "node scripts/validate-participants.mjs",

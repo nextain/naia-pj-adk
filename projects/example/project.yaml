@@ -1,5 +1,7 @@
 version: 1
 policy_contract_version: 1
+# 배치 프로파일. profiles/<name>/ 의 요구만 이 어댑터에 적용된다.
+profile: server
 project:
   id: example
   repository: example-owner/example-project

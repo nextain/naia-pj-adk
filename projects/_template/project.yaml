@@ -2,6 +2,11 @@ version: 1
 # Explicit opt-in to the common runtime policy contract. Legacy adapters are
 # rejected until an owner maps their roles and mutation capabilities.
 policy_contract_version: 1
+# Deployment profile: server (a shared host with deployment tiers) or local
+# (every member works from their own clone). The validator applies only the
+# named profile's requirements. For a local team copy projects/_template-local/
+# instead; it has no ssh home, no tiers and no deploy commands.
+profile: server
 # Optional project gateway example. Keep every delegated argv token explicit:
 # issue evidence is projected only into the three required markers, and the
 # restart job id is the only command-specific value. The bridge receives the

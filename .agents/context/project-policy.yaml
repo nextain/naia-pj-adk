@@ -1,6 +1,10 @@
 version: 1
 identity:
   name: naia-pj-adk
+  # 선언된 공개 여부는 GitHub 의 실제 값과 같아야 한다. 색인이 아니라 실제를
+  # 믿는다. `gh repo view nextain/naia-pj-adk --json visibility` 가 정본이고,
+  # package.json 의 private 플래그와 LICENSE 가 같은 사실을 말해야 한다.
+  repository: nextain/naia-pj-adk
   visibility: public
   authority_unit: project
 source_of_truth:

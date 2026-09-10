@@ -1,0 +1,37 @@
+# server 프로파일 선언. 사람이 읽는 설명은 profiles/server/README.ko.md.
+#
+# adapter_fields 는 scripts/lib/adapter-contract.mjs 의 PROFILE_RULES 와 같아야
+# 하고, scripts/validate.mjs 가 둘을 대조한다. 사람이 읽는 목록과 기계가
+# 적용하는 규칙이 갈라지면 문서 쪽이 조용히 틀린 채로 남기 때문이다.
+version: 1
+profile: server
+meaning: >
+  A team that shares one host. The repository is deployed to that host, work
+  happens in each participant's own home directory on it, and a deployment tier
+  is a source-and-data pair someone can break for everyone.
+placement: 서버 한 대에 단독 배치
+contracts:
+  core: .agents/context/execution.yaml
+  profile: profiles/server/context/execution.yaml
+components:
+  - path: ops/gateway/
+    role: 게이트웨이 부품. 정책 가드를 통과한 요청만 프로젝트 backend 로 넘긴다
+  - path: data-branch/
+    role: 브랜치 전용 에이전트 컨텍스트. 배포 대상이 브랜치마다 다른 팀이 쓴다
+  - path: .github/workflows/production-deploy.yml
+    role: 수동 실행 전용 운영 배포 워크플로. 설정 전에는 종료코드 1 로 닫힌다
+adapter_fields:
+  sections: [project, workspace, roles, discord, commands, team_policy, ops_profile, guards, execution, tiers]
+  required:
+    - workspace.ssh_home_pattern
+    - workspace.branch_pattern
+    - commands.validate
+    - commands.deploy_dev
+    - commands.deploy_production
+    - guards
+    - execution
+    - tiers
+  optional:
+    - gateway
+  forbidden:
+    - local_workspace

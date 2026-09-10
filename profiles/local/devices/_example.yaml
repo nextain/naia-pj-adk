@@ -1,0 +1,6 @@
+id: _example
+platform: linux
+owner: example-owner
+gpu: "실행에 쓰는 가속기와 그중 회차가 점유하는 몫"
+tools: "이 기기에서 실제로 돌아가는 실행 도구"
+notes: "회차 레인과 다른 상시 역할이 있으면 여기에 적습니다."

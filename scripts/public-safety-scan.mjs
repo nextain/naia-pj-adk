@@ -71,6 +71,7 @@ export const COVERAGE = [
   'provider-shaped tokens: AWS, GitHub, Slack, Google, OpenAI, JWT, Discord bot',
   'IPv4, IPv6, and internal hostnames',
   'personal identifiers: Discord snowflake, email, phone, resident registration, card-shaped digits',
+  'commit messages, where only a Co-Authored-By noreply trailer is exempt',
 ];
 
 // Lines a maintainer has justified in place. The marker records that a human
@@ -87,6 +88,26 @@ const ALLOWED_REACHABLE_HISTORY = new Set([
   '15dc1191c5113b05fdf7d5b27e44c56c4d8e7771:email-address',
 ]);
 
+// The three revisions above were allow-listed one SHA at a time for the same
+// reason: a co-author trailer carries a public no-reply address, which is an
+// attribution and not a way to reach a person. Listing SHAs does not survive
+// the history it describes. A rebase, a squash merge or an amended message
+// gives every one of those commits a new SHA, the exception stops applying,
+// and the gate fails on a line a maintainer already reviewed.
+//
+// So the exception is written as the shape it actually is, exactly once. It is
+// deliberately narrow: only a Co-Authored-By trailer, only a noreply address,
+// and only in a commit message, where a trailer is the only place this form
+// appears. An address in a tracked file is still a finding.
+const CO_AUTHOR_TRAILER = /^\s*co-authored-by:\s*[^<>]+<([^<>\s]+)>\s*$/i;
+const NOREPLY_ADDRESS = /(?:^|[.@])noreply(?:[.@]|$)/i;
+
+/** A co-author trailer whose address is a no-reply one, in a commit message. */
+function isCoAuthorNoreply(line) {
+  const trailer = line.match(CO_AUTHOR_TRAILER);
+  return Boolean(trailer) && NOREPLY_ADDRESS.test(trailer[1]);
+}
+
 const findings = [];
 
 function inspectText(label, text, historyRevision = undefined) {
@@ -95,8 +116,10 @@ function inspectText(label, text, historyRevision = undefined) {
     for (let i = 0; i < lines.length; i++) {
       if (!re.test(lines[i])) continue;
       const context = `${lines[i - 1] ?? ''}\n${lines[i]}`;
+      // historyRevision is set for commit messages only, never for file blobs.
       if (context.includes(ALLOW_MARKER)
-          || (historyRevision && ALLOWED_REACHABLE_HISTORY.has(`${historyRevision}:${id}`))) continue;
+          || (historyRevision && ALLOWED_REACHABLE_HISTORY.has(`${historyRevision}:${id}`))
+          || (historyRevision && id === 'email-address' && isCoAuthorNoreply(lines[i]))) continue;
       findings.push(`${label}:${i + 1}: ${id}`);
       break;
     }

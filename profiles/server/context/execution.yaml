@@ -1,0 +1,300 @@
+version: 1
+
+# Deployment execution contract, server profile.
+#
+# Loaded in addition to .agents/context/execution.yaml by any adapter that
+# declares `profile: server`. Everything here presupposes a target that more
+# than one person can change: a shared host, a tier with its own database, a
+# deployment that has to be proven to be serving.
+#
+# A local-profile team has none of those, and asking it to answer this contract
+# produced adapters full of nulls that looked answered. Splitting the file is
+# what makes an unanswered deploy gate visible again.
+#
+# workflow.yaml says which states exist and who may move between them.
+# It does not say what a machine must refuse. A workflow that only asks for
+# records is satisfied by a well-written record of a broken deployment.
+#
+# Everything here is written so that a project adapter can implement it as a
+# command that exits non-zero. A rule nobody can fail is not a rule.
+
+deploy_gate:
+  # A deploy command must refuse before it changes anything, and must refuse
+  # on its own rather than relying on the operator having read a document.
+  preconditions:
+    - name: issue_open
+      why: work without a live work item leaves no place to record the result
+    - name: worktree_clean
+      why: an uncommitted file makes the deployed artifact unidentifiable
+    - name: integration_branch_is_ancestor
+      why: >
+        deploying a branch that does not contain the integration branch silently
+        reverts whatever landed since it forked
+    - name: change_is_non_empty
+      why: a deploy identical to the integration branch hides a failed merge
+    - name: actor_is_authorized_for_target
+      why: shared and production targets are role-gated, not convention-gated
+    - name: staging_precedes_production
+      applies_to: production
+      why: >
+        production may only receive a revision that a staging target already
+        serves. A production revision without a previously verified
+        integration-tier result is not attributable, and hand-editing a target
+        leaves the next deployment unable to reproduce the state.
+    - name: staging_is_reachable
+      applies_to: production
+      why: >
+        a staging target that cannot be opened is not a check. Confirm that the
+        integration tier answers with a body before treating a pass as evidence.
+  failure_behavior: refuse_without_side_effects
+  refusal_must_name: [failed_precondition, how_to_satisfy_it]
+
+verification:
+  # A deploy is verified by what the site returns, not by the deploy command
+  # exiting zero.
+  rejects:
+    - status_code_only
+    - deploy_script_exit_code_as_proof
+    - single_page_sampled
+  requires:
+    - name: body_assertion
+      why: >
+        A site can hold a success status while serving an error page. Status
+        code alone cannot see this. Assert body size and required content.
+    - name: empty_body_is_failure
+      why: a 200 with an empty body is the shape most outages take here
+    - name: two_unlike_surfaces
+      why: >
+        One surface can render while another fails for a different reason.
+        Sample unlike surfaces so a single successful page is not treated as
+        verification of the whole tier.
+    - name: baseline_before_change
+      why: >
+        an after-value alone cannot tell you whether it is correct. Record the
+        same measurements immediately before the change and compare.
+
+incident_response:
+  # Approval gates exist to stop unreviewed change. They must not stop recovery.
+  #
+  # Recovery and bounded reads must remain available during an incident; they
+  # are different actions from a new high-risk production change.
+  when: service_is_down
+  signals: [five_xx, empty_body_on_a_page_that_had_one]
+  act_without_approval:
+    - rollback_to_previous_revision
+    - container_restart
+    - cache_or_opcache_reload
+  order: recover_first_then_diagnose
+  before_discarding_state: back_up_what_is_being_replaced
+  report: after_recovery
+
+ops_profile:
+  # Who may act without a human, on a live system. Three axes, not one
+  # "production" flag. Mixing them is how a GET of one page waits for the same
+  # approval as dropping a table.
+  #
+  # The neutral half of this section — stall_forbidden and attention_routing —
+  # is in .agents/context/execution.yaml and applies to both profiles.
+  axes:
+    user_visible_impact: [high, medium, low]
+    system_risk: [high, medium, low]
+    traffic_risk: [high, medium, low]
+  proceed_without_approval:
+    - id: bounded_production_read
+      when:
+        traffic_risk: [low, medium]
+      do: read immediately; never stall a thread to ask for a read
+    - id: user_visible_noncritical_deploy
+      when:
+        user_visible_impact: [high, medium]
+        system_risk: [low, medium]
+        deploy_needed: true
+      do: deploy with the project's formal script, then report
+      requires: [rollback_artifact_already_exists, issue_record]
+  requires_approval:
+    - id: high_traffic_read
+      when:
+        traffic_risk: high
+    - id: high_system_risk
+      when:
+        system_risk: high
+    - id: human_only_decision
+    - id: deploy_without_rollback_artifact
+
+post_deploy_signals:
+  # Sending a signal to the wrong process takes the site down more reliably
+  # than a bad commit.
+  #
+  # Resolve the intended process explicitly before sending a reload signal;
+  # an assumed PID can interrupt an otherwise valid deployment.
+  rule: resolve_the_target_by_name_not_by_assumed_pid
+  on_not_found: say_so_and_fail_loudly
+
+artifact:
+  # Build from a committed revision, not from whatever is on disk.
+  build_from: committed_revision
+  method: export_revision_to_clean_staging_directory
+  server_source_mount: forbidden
+  immutability: artifact_is_addressed_by_revision_and_never_rebuilt_in_place
+  intake_scan:
+    required_when: source_crosses_a_trust_boundary
+    on_failure: refuse
+  rationale: >
+    A running environment that is edited in place cannot be compared with any
+    revision, so drift becomes undetectable and rollback becomes guesswork.
+
+propagation:
+  # Writing files is not the same as the change taking effect.
+  declare_per_environment: true
+  fields:
+    - runtime_caches_that_must_be_invalidated
+    - edge_or_cdn_paths_that_must_be_invalidated
+    - restart_or_reload_command
+    - how_to_prove_the_new_revision_is_serving
+  rule: deployment_is_incomplete_until_propagation_is_proven
+  rationale: >
+    Byte-code and edge caches keep serving the previous revision after the
+    files change. Skipping this step produces a deploy that reports success and
+    changes nothing.
+
+pass_gate:
+  # What counts as a pass. Nested under a second `verification` key the
+  # contract parser rejected as a duplicate. Field names like "validation"
+  # are not definitions.
+  minimum_assertions:
+    - status_code
+    - minimum_body_size
+    - required_content_string
+  forbidden_as_sole_evidence:
+    - status_code_only
+    - internal_health_endpoint_only
+    - single_url
+    - operator_statement_without_command_output
+  gate: process_exit_code
+  consecutive_passes_required: 2
+  when: [before_change_as_baseline, after_change]
+  on_any_failure: stop_and_execute_bound_rollback
+  cache_bypass_required_for_recovery_checks: true
+  rationale: >
+    A failing service can keep returning a success status with an error body,
+    and an edge cache can keep serving a stale failure after the fix lands.
+    Assertions must read the body, and a recovery check must bypass the cache.
+
+rollback:
+  # A described rollback is not a rollback.
+  must_be_materialized_before_change: true
+  acceptable_forms:
+    - previous_artifact_retained_and_addressable
+    - configuration_backup_written_and_verified
+    - revert_revision_prepared
+  bound_to: [target_environment, revision, exact_command]
+  verified_by: same_verification_contract_as_the_change
+  rationale: >
+    Rollback plans written as prose are discovered to be wrong at the moment
+    they are needed. The artifact must already exist.
+
+concurrency:
+  # One writer per shared target. A local-profile team has no shared target,
+  # which is exactly why this section is not in the neutral core.
+  shared_target_requires_lease: true
+  lease:
+    scope: [environment, owner, expiry]
+    max_duration_minutes: 15
+    expiry_behavior: alarm_not_auto_release
+    release_condition: verification_passed_or_rollback_verified
+  concurrent_mutation: forbidden
+  rationale: >
+    Two simultaneous changes to one environment make both unattributable, and
+    an expiring lease that auto-releases invites exactly that.
+
+drift:
+  # Declared state versus running state.
+  must_be_detectable_for:
+    - deployed_revision_versus_integration_branch
+    - runtime_configuration_versus_tracked_configuration
+    - environment_tier_definition_versus_actual_wiring
+  detection: comparison_command_that_exits_non_zero_on_mismatch
+  on_detection: record_and_resolve_before_next_deployment
+  rationale: >
+    Environments drift silently. A tier that quietly stopped existing, or a
+    deployment target many revisions behind the integration branch, is only
+    found during an incident unless something compares them on purpose.
+
+environment_tiers:
+  # A tier is a source-and-data pair, not a hostname.
+  declare_per_tier: [source_revision_origin, database, who_may_deploy]
+  rule: >
+    Changing a tier's database or source origin changes what the tier proves.
+    Tier definitions are reviewed as a set, never edited one field at a time.
+  tier_must_be_reachable_to_count_as_a_tier: true
+
+server_workspace:
+  # 서버 프로파일에서만 성립하는 것. 사람마다 서버 위의 자기 자리를 갖는다.
+  #
+  # A server-profile team shares one host, so each participant has a home on it
+  # and the adapter must say how those homes are named. A local-profile team
+  # has no such home, and inventing one there points at a path that does not
+  # exist.
+  adapter_field: workspace.ssh_home_pattern
+  required: true
+  rule: >
+    An issue branch is worked in the participant's own home on the shared host,
+    never in a directory another participant is also writing to. The gateway
+    projects a canonical absolute workspace path and refuses a command whose
+    working directory does not match the registered participant.
+
+completion:
+  # Server-profile deployments add two fields to the neutral completion record.
+  evidence_required: [environment, revision, operator, verification_output, rollback_reference]
+  rationale: >
+    Without the environment the record does not say what was changed, and
+    without the rollback reference the next person cannot undo it.
+
+incident_severity:
+  # 승인을 구하는 일 자체가 비용이다. 서비스가 죽었는데 승인을 기다리면 그
+  # 시간만큼 사용자가 못 쓴다. 반대로 되돌리기 어려운 변경을 승인 없이 지르면
+  # 장애가 더 커진다. 급한 것과 위험한 것은 다르므로 축을 나눈다.
+  #
+  axes:
+    business_impact:
+      asks: what_the_user_cannot_do_right_now
+      high: cannot_reach_service_or_use_core_function
+      medium: degraded_but_a_workaround_exists
+      low: user_does_not_notice
+      excludes: the_cost_of_fixing_it
+    system_risk:
+      asks: how_hard_the_fix_itself_is_to_undo
+      high: data_changes_or_hard_to_reverse
+      medium: reversible_but_causes_interruption
+      low: one_setting_backed_up_and_instantly_reversible
+      excludes: how_severe_the_outage_is
+  decision:
+    - when: business_impact_high
+      then: act_without_approval_and_report_after
+    - when: system_risk_low
+      then: act_without_approval_regardless_of_impact
+    - when: system_risk_high
+      then: write_the_rollback_plan_first_then_request_approval_with_it
+    - otherwise: follow_the_normal_order_staging_then_production
+  rollback_plan_fields: [what_was_backed_up, exact_command_to_revert, what_to_verify_after]
+  self_challenge:
+    # 등급은 자기가 매기고 자기가 쓴다. 편한 쪽으로 기운다.
+    business_impact_low: "이 상태로 하루를 더 두면 누가 무엇을 못 하는지 적어 본다. 적히면 낮음이 아니다"
+    system_risk_low: "백업 경로를 실제로 댈 수 있는지 확인한다. 대지 못하면 낮음이 아니다"
+    both_low: "왜 이것이 장애로 올라왔는지 설명해 본다. 설명이 안 되면 다시 본다"
+    on_fail: raise_the_grade
+    once_raised: never_lowered
+
+health_verification:
+  # 응답 코드만 보는 감시는 겉으로 정상인 고장을 한 번도 잡지 못한다.
+  #
+  # A service can keep returning HTTP 200 with an empty body while its data
+  # connection or diagnostics are broken. Verify content, data access, and
+  # more than one surface so a human report is not the first signal.
+  status_code: not_used_as_a_verdict
+  rules:
+    - two_hundred_with_an_empty_body_is_a_failure
+    - assert_that_required_content_is_actually_present_by_string
+    - a_path_that_returns_a_verdict_must_return_one_empty_is_a_failure
+    - connect_to_the_database_with_the_config_the_app_itself_uses
+    - check_at_least_two_screens_of_different_kinds
