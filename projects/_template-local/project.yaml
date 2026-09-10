@@ -49,6 +49,8 @@ team_policy:
     incident_rollback: null
   assignment:
     issue_assignee_required: null
+    # Prefer request_recipient_then_last_human once the messaging host supports
+    # validated request bindings. Legacy: last_human_in_thread. See docs/REQUEST-HANDLING.ko.md.
     unanswered_thread_recipient: null
     default_responder_alias: null
 discord:

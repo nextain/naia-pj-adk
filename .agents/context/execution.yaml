@@ -27,7 +27,7 @@ ops_profile:
     # into the default inbox for work the bot already owes.
     bot_work_must_not_land_on_owner: true
     our_turn: dispatch_not_escalate_to_owner
-    re_ask_target: last_human_in_thread
+    re_ask_target: adapter_policy_with_validated_request_recipient
     re_ask_fallback_to_owner: false
     skip_re_ask_when_work_is_queued: true
     owner_direct_message_only:
@@ -41,10 +41,11 @@ confirmation_request:
   #
   # A request that names nobody notifies nobody, and a request with no return
   # address produces an answer that lands where the asker is not reading.
-  required_fields: [who, what, where_exactly, where_to_report_back]
+  required_fields: [who, what, where_exactly, where_to_report_back, work_item, plan_ref, reply_template, expiry]
   quoted_text_mentions: neutralized
   rationale: >
-    Four fields, because each missing one has already cost a day here. Without
+    The address fields identify the recipient and return path; work item,
+    plan reference, reply template and expiry make the decision reviewable. Without
     "who" the message sits in a thread nobody owns. Without "where exactly" the
     person guesses which surface to look at. Without "where to report back" the
     answer is written somewhere the asker never reads. And text quoted from
@@ -97,22 +98,21 @@ watchdog:
     # 사람이 답할 차례일 때, 기다리기만 하는 것은 추적이 아니다.
     re_ask_after_minutes: 60
     re_ask_where: the_thread_the_person_is_in
-    re_ask_addresses: the_last_person_who_spoke_there
+    re_ask_addresses: validated_request_recipient_else_registered_speaker_if_no_request
     re_ask_fallback: none
     our_turn: dispatch_not_escalate_to_owner
     skip_re_ask_when_work_is_queued: true
     owner_direct_message_only: [malfunction, awaiting_owner_with_deadline]
     quoted_text_mentions: neutralized
     rationale_addressing: >
-      A re-ask that names nobody notifies nobody. It sits in a thread the person
-      is not watching, and waiting items can reach the re-ask limit without
-      anyone being told. The person being waited on is usually the last one who
-      spoke there, which is derivable without a registry. Address the person you
-      decided to address, and leave quoted calls as letters.
+      Preserve the intended recipient even if another person speaks later.
+      Missing, stale or invalid explicit requests are agent preparation work.
+      Only a thread without an active request may fall back to its last
+      registered human speaker. Never fall back to an owner or default inbox.
     minimum_acceptable_reply: an_acknowledgement
     max_re_asks: 3
     then: escalate_as_stuck_rather_than_asking_again
-    cleared_by: any_reply_from_a_person
+    cleared_by: authenticated_response_bound_to_the_active_request
     contact_window:
       # 고장 알림과 확인 요청은 다른 것이다. 요청만 시간으로 막는다.
       applies_to: [re_ask, routine_reminder]
@@ -162,3 +162,20 @@ defect_origin:
   on_fix: search_every_occurrence_of_the_same_shape_first
   when_repeated_three_times: extract_into_one_shared_function
   fixing_only_where_reported: guarantees_recurrence
+
+approval_handling:
+  authorization_and_execution_readiness_are_separate: true
+  preserve_existing_scope: true
+  preparation_owner: agent
+  short_reply_binding_requires: [authenticated_approver, current_reviewed_plan, same_work_item_target_and_effect, explicit_reply_to_plan]
+  execution_requires: valid_unexpired_unconsumed_authorization_when_approval_is_required
+  short_reply_is_not_standalone_authority: true
+  request_after: [candidate, verification, rollback_preparation, required_review]
+  ask_again_only_for: [expanded_scope_or_risk, revoked_or_expired_authorization, unresolved_human_decision]
+  never_ask_again_for: [missing_runner, backup_preparation, review_pending, agent_generated_command_hash_missing]
+  execution_gates_still_required: true
+  no_answer_is_not_approval: true
+  transport_health_is_not_work_health: true
+  work_review_signals: [report_without_next_action, approval_rejected_for_preparation, request_without_recipient_or_reply_template]
+  work_review_signals_grant_no_authority: true
+  invalid_wait_action: agent_review_with_evidence_before_state_change

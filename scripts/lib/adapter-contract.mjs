@@ -1,3 +1,5 @@
+import { REQUEST_RECIPIENT_POLICIES } from './request-recipient.mjs';
+
 // The project registry is consumed as data by the structure validator. Keep
 // the minimum adapter shape in one small, pure function so it can be tested
 // with both a real adapter and a deliberately incomplete one.
@@ -404,8 +406,8 @@ export function assertAdapterContractShape(adapter, label = 'adapter') {
   if (assignment.issue_assignee_required !== true) {
     throw new Error(`${label}.team_policy.assignment.issue_assignee_required must be true`);
   }
-  if (assignment.unanswered_thread_recipient !== 'last_human_in_thread') {
-    throw new Error(`${label}.team_policy.assignment.unanswered_thread_recipient must be last_human_in_thread`);
+  if (!REQUEST_RECIPIENT_POLICIES.includes(assignment.unanswered_thread_recipient)) {
+    throw new Error(`${label}.team_policy.assignment.unanswered_thread_recipient must be one of ${REQUEST_RECIPIENT_POLICIES.join(', ')}`);
   }
   if (assignment.default_responder_alias !== null) {
     requireString(assignment.default_responder_alias, `${label}.team_policy.assignment.default_responder_alias`);

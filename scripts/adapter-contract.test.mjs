@@ -10,6 +10,19 @@ const load = (relative) => parseYaml(fs.readFileSync(path.join(root, relative), 
 const adapter = load('projects/example/project.yaml');
 const localAdapter = load('projects/example-local/project.yaml');
 
+test('both profiles accept explicit-request routing and retain legacy compatibility', () => {
+  for (const source of [adapter, localAdapter]) {
+    for (const policy of ['last_human_in_thread', 'request_recipient_then_last_human']) {
+      const candidate = structuredClone(source);
+      candidate.team_policy.assignment.unanswered_thread_recipient = policy;
+      assert.doesNotThrow(() => assertAdapterContractShape(candidate));
+    }
+    const candidate = structuredClone(source);
+    candidate.team_policy.assignment.unanswered_thread_recipient = 'default_owner';
+    assert.throws(() => assertAdapterContractShape(candidate), /unanswered_thread_recipient must be one of/);
+  }
+});
+
 test('accepts a complete activated adapter', () => {
   assert.doesNotThrow(() => assertAdapterContractShape(adapter, 'example'));
 });
