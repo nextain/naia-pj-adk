@@ -24,6 +24,20 @@ const contributorWorkspace = path.join(tempRoot, 'workspace-contributor');
 const integratorWorkspace = path.join(tempRoot, 'workspace-integrator');
 const releaseOwnerWorkspace = path.join(tempRoot, 'workspace-release-owner');
 const releaseApproverWorkspace = path.join(tempRoot, 'workspace-release-approver');
+function shellPath(value) {
+  if (process.platform !== 'win32') return value;
+  const commands = [
+    'cygpath.exe',
+    path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Git', 'usr', 'bin', 'cygpath.exe'),
+  ];
+  for (const command of commands) {
+    const result = spawnSync(command, ['-u', value], { encoding: 'utf8' });
+    if (result.status === 0) return result.stdout.trim();
+  }
+  return value;
+}
+const contributorShellWorkspace = shellPath(contributorWorkspace);
+const releaseOwnerShellWorkspace = shellPath(releaseOwnerWorkspace);
 for (const workspace of [
   contributorWorkspace,
   integratorWorkspace,
@@ -43,7 +57,11 @@ const fakeNativeContractModule = path.join(
 );
 const adkArgs = path.join(tempRoot, 'adk-args.txt');
 
-fs.copyFileSync(adapterSource, adapterFile);
+// Keep generated fixtures independent of the checkout's platform line ending.
+// Windows Git clients may materialize YAML as CRLF, while the fixture edits
+// below intentionally target the canonical LF form.
+const adapterText = fs.readFileSync(adapterSource, 'utf8').replace(/\r\n/g, '\n');
+fs.writeFileSync(adapterFile, adapterText);
 fs.appendFileSync(adapterFile, `
 gateway:
   project_backend:
@@ -220,6 +238,7 @@ export {
   adapterSource,
   adkArgs,
   contributorWorkspace,
+  contributorShellWorkspace,
   evaluatePolicy,
   fakeAdkRoot,
   fakeCtl,
@@ -242,6 +261,7 @@ export {
   registryFile,
   releaseApproverWorkspace,
   releaseOwnerWorkspace,
+  releaseOwnerShellWorkspace,
   revision,
   root,
   runDcg,

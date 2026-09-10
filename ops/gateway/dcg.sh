@@ -4,6 +4,15 @@
 set -euo pipefail
 set +x
 
+to_shell_path() {
+  local candidate="${1:-}"
+  if [[ "$candidate" =~ ^[A-Za-z]:[\\/].* ]] && command -v cygpath >/dev/null 2>&1; then
+    cygpath -u -- "$candidate"
+  else
+    printf '%s' "$candidate"
+  fi
+}
+
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 adk_root="$(cd "$here/../.." && pwd)"
 policy_guard="$adk_root/scripts/policy-guard.mjs"
@@ -11,6 +20,8 @@ native_contract="$adk_root/ops/gateway/native-command-contract.json"
 native_contract_validator="$adk_root/scripts/native-command-validator.mjs"
 project_ctl="${PROJECT_GATEWAY_CTL:-}"
 naia_adk_root="${NAIA_ADK_ROOT:-}"
+project_ctl="$(to_shell_path "$project_ctl")"
+naia_adk_root="$(to_shell_path "$naia_adk_root")"
 adk_script=""
 if [[ -n "$naia_adk_root" ]]; then
   adk_script="$naia_adk_root/.agents/skills/manage-discord-sessions/scripts/manage-discord-sessions.sh"
@@ -86,6 +97,7 @@ esac
 # boundary: host authentication, file permissions, and Discord/GitHub client
 # credentials are outside this repository and are not replaced by this check.
 project_yaml="${GATEWAY_PROJECT_YAML:-}"
+project_yaml="$(to_shell_path "$project_yaml")"
 if [[ -z "$project_yaml" || ! -r "$project_yaml" ]]; then
   fail 'GATEWAY_PROJECT_YAML must name a readable project adapter.'
 fi
@@ -285,20 +297,22 @@ guard_args=(
   --adapter "$project_yaml"
   --command "$cmd"
 )
-[[ -n "${GATEWAY_PARTICIPANT_REGISTRY:-}" ]] \
-  && guard_args+=(--registry "$GATEWAY_PARTICIPANT_REGISTRY")
+gateway_registry="$(to_shell_path "${GATEWAY_PARTICIPANT_REGISTRY:-}")"
+issue_evidence="$(to_shell_path "${POLICY_ISSUE_EVIDENCE:-}")"
+[[ -n "$gateway_registry" ]] \
+  && guard_args+=(--registry "$gateway_registry")
 [[ -n "${POLICY_SENDER_ID:-}" ]] \
   && guard_args+=(--sender-id "$POLICY_SENDER_ID")
 [[ -n "${POLICY_ACTOR_ALIAS:-}" ]] \
   && guard_args+=(--actor-alias "$POLICY_ACTOR_ALIAS")
-[[ -n "${POLICY_ISSUE_EVIDENCE:-}" ]] \
-  && guard_args+=(--issue-evidence "$POLICY_ISSUE_EVIDENCE")
+[[ -n "$issue_evidence" ]] \
+  && guard_args+=(--issue-evidence "$issue_evidence")
 [[ -n "$policy_revision" ]] \
   && guard_args+=(--revision "$policy_revision")
 
 case "$policy_operation" in
   issue-work|production-deploy|database-write|rollback|attachment-download)
-    target_workspace="${PROJECT_GATEWAY_WORKSPACE:-}"
+    target_workspace="$(to_shell_path "${PROJECT_GATEWAY_WORKSPACE:-}")"
     [[ -n "$target_workspace" ]] || fail 'mutating project work requires PROJECT_GATEWAY_WORKSPACE.'
     [[ "$target_workspace" = /* ]] || fail 'PROJECT_GATEWAY_WORKSPACE must be an absolute existing directory.'
     [[ -d "$target_workspace" ]] || fail 'PROJECT_GATEWAY_WORKSPACE must be an absolute existing directory.'

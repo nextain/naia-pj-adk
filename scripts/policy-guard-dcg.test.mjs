@@ -4,10 +4,10 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import {
-  adapter, adapterFile, adapterSource, adkArgs, contributorWorkspace, fakeAdkRoot, fakeCtl,
+  adapter, adapterFile, adapterSource, adkArgs, contributorShellWorkspace, contributorWorkspace, fakeAdkRoot, fakeCtl,
   fakeCtlRelative, issueFile, nativeIntegrationAvailable, previousRevision,
   productionCtlRelative, projectArgs, projectCwd, projectWorkspace, registryFile,
-  releaseOwnerWorkspace, revision, root, runDcg, sentinel, tempRoot, resetHandoffs,
+  releaseOwnerShellWorkspace, releaseOwnerWorkspace, revision, root, runDcg, sentinel, tempRoot, resetHandoffs,
 } from './policy-guard-fixture.mjs';
 
 test('dcg runs the policy guard before handing off to the project runtime', () => {
@@ -101,8 +101,8 @@ test('dcg runs the policy guard before handing off to the project runtime', () =
     fs.readFileSync(projectArgs, 'utf8'),
     `submit --issue-repository ${adapter.project.repository} --issue-number 1 --issue-assignee contributor`,
   );
-  assert.equal(fs.readFileSync(projectWorkspace, 'utf8'), contributorWorkspace);
-  assert.equal(fs.readFileSync(projectCwd, 'utf8').trim(), contributorWorkspace);
+  assert.equal(fs.readFileSync(projectWorkspace, 'utf8'), contributorShellWorkspace);
+  assert.equal(fs.readFileSync(projectCwd, 'utf8').trim(), contributorShellWorkspace);
 
   fs.rmSync(sentinel, { force: true });
   const restartedIssue = spawnSync('bash', ['ops/gateway/dcg.sh', 'restart', '--job', 'job-1'], {
@@ -115,8 +115,8 @@ test('dcg runs the policy guard before handing off to the project runtime', () =
     fs.readFileSync(projectArgs, 'utf8'),
     `restart --job job-1 --issue-repository ${adapter.project.repository} --issue-number 1 --issue-assignee contributor`,
   );
-  assert.equal(fs.readFileSync(projectWorkspace, 'utf8'), contributorWorkspace);
-  assert.equal(fs.readFileSync(projectCwd, 'utf8').trim(), contributorWorkspace);
+  assert.equal(fs.readFileSync(projectWorkspace, 'utf8'), contributorShellWorkspace);
+  assert.equal(fs.readFileSync(projectCwd, 'utf8').trim(), contributorShellWorkspace);
 
   fs.rmSync(sentinel, { force: true });
   fs.rmSync(projectCwd, { force: true });
@@ -471,8 +471,8 @@ test('dcg binds the approved production revision to the delegated command', () =
   });
   assert.equal(delegated.status, 0, delegated.stderr);
   assert.equal(fs.readFileSync(productionArgs, 'utf8'), `deploy-production --revision ${revision}`);
-  assert.equal(fs.readFileSync(projectWorkspace, 'utf8'), releaseOwnerWorkspace);
-  assert.equal(fs.readFileSync(projectCwd, 'utf8').trim(), releaseOwnerWorkspace);
+  assert.equal(fs.readFileSync(projectWorkspace, 'utf8'), releaseOwnerShellWorkspace);
+  assert.equal(fs.readFileSync(projectCwd, 'utf8').trim(), releaseOwnerShellWorkspace);
 
   fs.rmSync(sentinel, { force: true });
   const mismatched = spawnSync('bash', ['ops/gateway/dcg.sh', 'deploy-production', '--revision', revision], {
