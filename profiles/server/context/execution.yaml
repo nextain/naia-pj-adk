@@ -100,14 +100,20 @@ ops_profile:
     system_risk: [high, medium, low]
     traffic_risk: [high, medium, low]
   proceed_without_approval:
+    - id: routine_dev_delivery
+      when:
+        target: development
+      do: authorized integrator reviews, merges, deploys and verifies without an additional owner request
     - id: bounded_production_read
       when:
         traffic_risk: [low, medium]
       do: read immediately; never stall a thread to ask for a read
-    - id: user_visible_noncritical_deploy
+    - id: noncritical_deploy
       when:
-        user_visible_impact: [high, medium]
+        adapter_approval_policy: high_risk_only
+        user_visible_impact: [high, medium, low]
         system_risk: [low, medium]
+        traffic_risk: [low, medium]
         deploy_needed: true
       do: deploy with the project's formal script, then report
       requires: [rollback_artifact_already_exists, issue_record]
@@ -119,7 +125,14 @@ ops_profile:
       when:
         system_risk: high
     - id: human_only_decision
-    - id: deploy_without_rollback_artifact
+  adapter_policy:
+    default: required
+    opt_in: high_risk_only
+    rule: the adapter must explicitly adopt conditional approval; role, revision, review and execution gates remain required
+  execution_readiness:
+    owner: agent
+    requires: [rollback_artifact, verification_evidence, independent_risk_review, authorized_executor]
+    missing: prepare_and_recheck_without_requesting_same_approval_again
 
 post_deploy_signals:
   # Sending a signal to the wrong process takes the site down more reliably
@@ -269,21 +282,18 @@ incident_severity:
       low: one_setting_backed_up_and_instantly_reversible
       excludes: how_severe_the_outage_is
   decision:
-    - when: business_impact_high
-      then: act_without_approval_and_report_after
-    - when: system_risk_low
-      then: act_without_approval_regardless_of_impact
-    - when: system_risk_high
+    - when: system_risk_high_or_traffic_risk_high
       then: write_the_rollback_plan_first_then_request_approval_with_it
-    - otherwise: follow_the_normal_order_staging_then_production
+    - when: system_and_traffic_risk_known_and_nonhigh
+      then: follow_adapter_approval_policy_regardless_of_business_impact_or_urgency
+    - otherwise: agent_investigates_risk_and_prepares_execution
   rollback_plan_fields: [what_was_backed_up, exact_command_to_revert, what_to_verify_after]
   self_challenge:
     # 등급은 자기가 매기고 자기가 쓴다. 편한 쪽으로 기운다.
     business_impact_low: "이 상태로 하루를 더 두면 누가 무엇을 못 하는지 적어 본다. 적히면 낮음이 아니다"
-    system_risk_low: "백업 경로를 실제로 댈 수 있는지 확인한다. 대지 못하면 낮음이 아니다"
+    system_risk_low: "변경 효과와 복구 난도를 확인한다. 백업 미준비는 에이전트 준비 작업이며 그 자체가 승인 사유는 아니다"
     both_low: "왜 이것이 장애로 올라왔는지 설명해 본다. 설명이 안 되면 다시 본다"
-    on_fail: raise_the_grade
-    once_raised: never_lowered
+    on_fail: reassess_from_evidence_without_turning_preparation_into_human_wait
 
 health_verification:
   # 응답 코드만 보는 감시는 겉으로 정상인 고장을 한 번도 잡지 못한다.

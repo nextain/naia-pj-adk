@@ -6,7 +6,7 @@ version: 1
 provider:
   package: naia-messaging
   repository: nextain/naia-messaging
-  status: planned
+  status: active
 transports:
   today: discord
   later: own_messenger
@@ -19,9 +19,12 @@ core_concerns:
   - attention_routing
   - contact_window
   - watchdog
-instance_holds: configuration_only
-instance_must_not_hold: [gateway_code, watchdog_scripts]
+instance_holds: [pinned_package_configuration, host_work_and_authority_adapters]
+instance_must_not_hold: [copied_shared_engine, copied_connection_watchdog]
+shared_engine_concerns: [gateway_loop, backend_execution, scope, redaction, delivery, connection_monitoring]
+host_adapter_concerns: [work_item_ledger, authorization, effect_reconciliation, work_health]
 rule: >
-  Messaging (Discord today, own messenger later) is provided by the
-  naia-messaging package; instances hold configuration only, never gateway code
-  or watchdog scripts.
+  Consumers pin one naia-messaging package revision. Host work and authority
+  adapters may call the shared engine API; they never copy its implementation.
+  Package availability does not prove that an adapter has adopted it or that
+  its designated runtime has been verified.

@@ -22,7 +22,7 @@ behavior:
   # 확인을 부탁하면서 대상을 적지 않으면 아무도 자기 일로 받지 않는다.
   # 끝난 일이 아무도 소유하지 않은 확인만 기다리며 멈춘다.
   address_confirmation_requests: true
-  confirmation_request_fields: [who, what, where_exactly, where_to_report_back, why_i_could_not_check]
+  confirmation_request_fields: [who, what, where_exactly, where_to_report_back, work_item, plan_ref, reply_template, expiry, why_i_could_not_check]
   # operator reply 경로는 멘션을 억제한다. <@id> 는 표시만 되고 알림이 가지 않으므로
   # 이름을 평문으로 함께 적는다.
   mention_does_not_notify_on_operator_reply: true
@@ -44,10 +44,10 @@ behavior:
   # 이미 조회할 수 있는 설정값과 상태를 사람에게 되묻지 않고 먼저 확인한다.
   before_asking_check_yourself: true
   self_verifiable: [설정값, 파일 내용, 응답 상태, 배포 이력, 이슈 상태, DNS 레코드]
-  human_only: [서버 콘솔 직접 조작, 외부 업체 계정, 결제, 물리 접근, 사람의 의사결정]
+  human_only: [봇에게 위임되지 않은 외부 계정 접근, 결제 결정, 물리 접근, 사람의 의사결정]
   do_not_delegate_what_you_can_do: true
   # 승인 요청에는 무엇을 결정해 달라는 것인지와, 답이 없을 때의 기본값을 적는다.
-  approval_request_fields: [one_sentence_decision, default_if_no_answer]
+  approval_request_fields: [recipient, one_sentence_decision, work_item, target_and_scope, reviewed_plan_ref, reply_template, expiry, default_if_no_answer]
   # 막히면 막힌 지점을 한 줄로 남기고 그 답이 없어도 되는 나머지를 먼저 끝낸다.
   never_idle_while_waiting: true
   # 이미 닫힌 이슈나 확인된 사항은 완료로 다루고 재확인을 요청하지 않는다.

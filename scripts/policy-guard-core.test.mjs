@@ -359,6 +359,48 @@ test('production requires release role, open issue, and matching approval', () =
   );
 });
 
+test('conditional approval executes reviewed nonhigh risk and rejects incomplete or high risk without approval', () => {
+  const conditionalAdapter = path.join(tempRoot, 'conditional-project.yaml');
+  fs.writeFileSync(conditionalAdapter, fs.readFileSync(adapterFile, 'utf8')
+    .replace('production_deploy: required', 'production_deploy: high_risk_only')
+    .replace('production_requires_issue_approval: true', 'production_requires_issue_approval: false'));
+  const conditionalIssue = path.join(tempRoot, 'conditional-issue.json');
+  const review = { revision, system_risk: 'low', traffic_risk: 'medium', human_only_decision: false,
+    reviewed_by: 'release-approver', review_ref: 'issue-review-1',
+    rollback_artifact: 'previous-artifact', verification_ref: 'verification-1' };
+  const evidence = { repository: adapter.project.repository, number: 1, state: 'OPEN',
+    assignee: 'contributor', deployment_review: review };
+  const evaluate = (value = evidence, overrides = {}) => {
+    fs.writeFileSync(conditionalIssue, JSON.stringify(value));
+    return policy({ operation: 'production-deploy', actorAlias: 'release-owner',
+      adapterFile: conditionalAdapter, issueEvidenceFile: conditionalIssue, revision, ...overrides });
+  };
+  assert.doesNotThrow(() => evaluate());
+  for (const system_risk of ['low', 'medium']) {
+    for (const traffic_risk of ['low', 'medium']) {
+      assert.doesNotThrow(() => evaluate({ ...evidence,
+        deployment_review: { ...review, system_risk, traffic_risk } }));
+    }
+  }
+  for (const delta of [{ system_risk: 'high' }, { traffic_risk: 'high' }, { human_only_decision: true }]) {
+    const high = { ...evidence, deployment_review: { ...review, ...delta } };
+    assert.throws(() => evaluate(high), /approval does not identify/);
+    assert.doesNotThrow(() => evaluate({ ...high, approval: {
+      approved: true, approved_by: 'release-approver', approved_revision: revision,
+    } }));
+  }
+  for (const delta of [{ system_risk: 'unknown' }, { traffic_risk: null },
+    { human_only_decision: undefined }, { revision: previousRevision },
+    { rollback_artifact: '' }, { verification_ref: '' }, { review_ref: '' }]) {
+    assert.throws(() => evaluate({ ...evidence, deployment_review: { ...review, ...delta } }), /agent preparation is required/);
+  }
+  for (const reviewed_by of ['release-owner', 'contributor', 'unregistered']) {
+    assert.throws(() => evaluate({ ...evidence, deployment_review: { ...review, reviewed_by } }), /reviewer|independent/);
+  }
+  assert.throws(() => evaluate(evidence, { actorAlias: 'contributor' }), /not a production release owner/);
+  assert.throws(() => evaluate(evidence, { command: 'database-write' }), /command|capability/);
+});
+
 test('production policy rejects a non-owner member of a mixed deploy group', () => {
   const mixedAdapterFile = path.join(tempRoot, 'mixed-production-role.yaml');
   const mixedAdapterSource = fs.readFileSync(adapterFile, 'utf8')

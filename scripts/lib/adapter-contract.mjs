@@ -1,3 +1,5 @@
+import { REQUEST_RECIPIENT_POLICIES } from './request-recipient.mjs';
+
 // The project registry is consumed as data by the structure validator. Keep
 // the minimum adapter shape in one small, pure function so it can be tested
 // with both a real adapter and a deliberately incomplete one.
@@ -384,8 +386,8 @@ export function assertAdapterContractShape(adapter, label = 'adapter') {
   for (const key of ['production_deploy', 'high_system_risk', 'incident_rollback']) {
     requireString(approval[key], `${label}.team_policy.approval.${key}`);
   }
-  if (approval.production_deploy !== 'required') {
-    throw new Error(`${label}.team_policy.approval.production_deploy must be required`);
+  if (!['required', 'high_risk_only'].includes(approval.production_deploy)) {
+    throw new Error(`${label}.team_policy.approval.production_deploy must be required or high_risk_only`);
   }
   if (approval.high_system_risk !== 'required') {
     throw new Error(`${label}.team_policy.approval.high_system_risk must be required`);
@@ -404,8 +406,8 @@ export function assertAdapterContractShape(adapter, label = 'adapter') {
   if (assignment.issue_assignee_required !== true) {
     throw new Error(`${label}.team_policy.assignment.issue_assignee_required must be true`);
   }
-  if (assignment.unanswered_thread_recipient !== 'last_human_in_thread') {
-    throw new Error(`${label}.team_policy.assignment.unanswered_thread_recipient must be last_human_in_thread`);
+  if (!REQUEST_RECIPIENT_POLICIES.includes(assignment.unanswered_thread_recipient)) {
+    throw new Error(`${label}.team_policy.assignment.unanswered_thread_recipient must be one of ${REQUEST_RECIPIENT_POLICIES.join(', ')}`);
   }
   if (assignment.default_responder_alias !== null) {
     requireString(assignment.default_responder_alias, `${label}.team_policy.assignment.default_responder_alias`);
