@@ -124,7 +124,11 @@ export function loadRound(root, id) {
   if (!fs.existsSync(path.join(dir, 'round.json'))) fail(`round not found: ${id}`);
   const round = readJson(path.join(dir, 'round.json'));
   const catalogText = fs.readFileSync(path.join(dir, 'catalog.json'), 'utf8');
-  if (sha256(catalogText) !== round.catalogHash) fail(`catalog of round ${id} was modified after it was frozen`);
+  // Git may materialize checked-in JSON with CRLF on Windows even though the
+  // coordinator hashed the canonical LF representation when freezing it.
+  // Normalize line endings before comparing so checkout policy is not treated
+  // as catalog tampering.
+  if (sha256(catalogText.replace(/\r\n/g, '\n')) !== round.catalogHash) fail(`catalog of round ${id} was modified after it was frozen`);
   const catalog = JSON.parse(catalogText);
   return { dir, round, catalog, bundles: bundlesOf(catalog) };
 }
