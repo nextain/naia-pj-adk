@@ -49,3 +49,17 @@ test('policy-only validation retains recipient, role and high-risk invariants',(
     const p=structuredClone(source);mutate(p);assert.throws(()=>assertAdapterPolicyContract(p));
   }
 });
+for (const [field, mutate] of [
+  ['stall_forbidden',p=>p.ops_profile.stall_forbidden=false],
+  ['bot_work_must_not_land_on_owner',p=>p.ops_profile.attention_routing.bot_work_must_not_land_on_owner=false],
+  ['our_turn',p=>p.ops_profile.attention_routing.our_turn='escalate_to_owner'],
+  ['re_ask_fallback_to_owner',p=>p.ops_profile.attention_routing.re_ask_fallback_to_owner=true],
+]) {
+  test(`both adapter boundaries preserve ${field} when Discord is enabled`,()=>{
+    const source=parseYaml(fs.readFileSync(new URL('../projects/example/project.yaml',import.meta.url),'utf8'));
+    source.discord.enabled=true;mutate(source);
+    for (const validate of [assertAdapterPolicyContract,assertAdapterContractShape]) {
+      assert.throws(()=>validate(source),new RegExp(field));
+    }
+  });
+}

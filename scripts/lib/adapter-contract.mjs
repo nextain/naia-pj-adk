@@ -540,6 +540,20 @@ function assertOpsProfile(adapter, label) {
   );
   requireType(opsProfile.attention_routing.our_turn, 'string', `${label}.ops_profile.attention_routing.our_turn`);
   requireType(opsProfile.attention_routing.re_ask_fallback_to_owner, 'boolean', `${label}.ops_profile.attention_routing.re_ask_fallback_to_owner`);
+  if (adapter.discord.enabled === true) {
+    if (opsProfile.stall_forbidden !== true) {
+      throw new Error(`${label}.ops_profile.stall_forbidden must forbid stalling on bounded production reads`);
+    }
+    if (opsProfile.attention_routing.bot_work_must_not_land_on_owner !== true) {
+      throw new Error(`${label}.ops_profile.attention_routing.bot_work_must_not_land_on_owner must keep bot work with the agent`);
+    }
+    if (opsProfile.attention_routing.our_turn !== 'dispatch_not_escalate_to_owner') {
+      throw new Error(`${label}.ops_profile.attention_routing.our_turn must dispatch owed bot work`);
+    }
+    if (opsProfile.attention_routing.re_ask_fallback_to_owner !== false) {
+      throw new Error(`${label}.ops_profile.attention_routing.re_ask_fallback_to_owner must preserve the validated recipient`);
+    }
+  }
 }
 
 export {
