@@ -10,6 +10,19 @@ const load = (relative) => parseYaml(fs.readFileSync(path.join(root, relative), 
 const adapter = load('projects/example/project.yaml');
 const localAdapter = load('projects/example-local/project.yaml');
 
+test('conditional production approval is explicit and cannot disable high-risk gates', () => {
+  const candidate = structuredClone(adapter);
+  candidate.team_policy.approval.production_deploy = 'high_risk_only';
+  assert.throws(() => assertAdapterContractShape(candidate), /production_requires_issue_approval must match/);
+  candidate.guards.production_requires_issue_approval = false;
+  assert.doesNotThrow(() => assertAdapterContractShape(candidate));
+  candidate.team_policy.approval.high_system_risk = 'without_approval';
+  assert.throws(() => assertAdapterContractShape(candidate), /high_system_risk must be required/);
+  candidate.team_policy.approval.high_system_risk = 'required';
+  candidate.team_policy.approval.production_deploy = 'without_approval';
+  assert.throws(() => assertAdapterContractShape(candidate), /production_deploy must be required or high_risk_only/);
+});
+
 test('both profiles accept explicit-request routing and retain legacy compatibility', () => {
   for (const source of [adapter, localAdapter]) {
     for (const policy of ['last_human_in_thread', 'request_recipient_then_last_human']) {

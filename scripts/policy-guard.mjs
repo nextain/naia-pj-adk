@@ -376,6 +376,28 @@ function evaluatePolicy({
     requireRole(actor, releaseRole, 'actor is not a production release owner');
     requireActiveAssignee(participants, evidence);
     requireRevision(revision);
+    if (adapter.team_policy.approval.production_deploy === 'high_risk_only') {
+      const review = evidence.deployment_review;
+      if (!isObject(review) || review.revision !== revision
+          || !['low', 'medium', 'high'].includes(review.system_risk)
+          || !['low', 'medium', 'high'].includes(review.traffic_risk)
+          || typeof review.human_only_decision !== 'boolean'
+          || !nonEmptyString(review.review_ref)
+          || !nonEmptyString(review.rollback_artifact)
+          || !nonEmptyString(review.verification_ref)) {
+        throw rejected('deployment review must bind revision, risk, verification and rollback; agent preparation is required');
+      }
+      const reviewer = participants.find((participant) => participant.alias === review.reviewed_by);
+      if (!reviewer) throw rejected('deployment reviewer is not an active participant');
+      requireRole(reviewer, releaseRole, 'deployment reviewer is not a release owner');
+      if ([actor.alias, evidence.assignee].includes(reviewer.alias)) {
+        throw rejected('deployment review must be independent of executor and issue assignee');
+      }
+      if (review.system_risk !== 'high' && review.traffic_risk !== 'high' && !review.human_only_decision) {
+        requireProjectBackendCommand(adapter, operation, command, commandArgs, revision);
+        return;
+      }
+    }
     const approval = evidence.approval;
     if (!isObject(approval)
         || approval.approved !== true

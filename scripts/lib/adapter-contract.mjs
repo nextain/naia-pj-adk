@@ -386,8 +386,8 @@ export function assertAdapterContractShape(adapter, label = 'adapter') {
   for (const key of ['production_deploy', 'high_system_risk', 'incident_rollback']) {
     requireString(approval[key], `${label}.team_policy.approval.${key}`);
   }
-  if (approval.production_deploy !== 'required') {
-    throw new Error(`${label}.team_policy.approval.production_deploy must be required`);
+  if (!['required', 'high_risk_only'].includes(approval.production_deploy)) {
+    throw new Error(`${label}.team_policy.approval.production_deploy must be required or high_risk_only`);
   }
   if (approval.high_system_risk !== 'required') {
     throw new Error(`${label}.team_policy.approval.high_system_risk must be required`);

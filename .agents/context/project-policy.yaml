@@ -22,7 +22,7 @@ roles:
     may_not: [merge_dev, deploy_production, mutate_shared_database]
   integrator:
     may: [review_change, merge_dev, deploy_dev, record_dev_result]
-    may_not: [deploy_production_without_approval]
+    may_not: [deploy_production_without_adapter_authority_and_required_approval]
   release_owner:
     may: [approve_production, deploy_production, initiate_rollback]
 authority:

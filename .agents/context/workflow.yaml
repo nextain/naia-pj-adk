@@ -31,7 +31,8 @@ transitions:
   - from: acceptance_requested
     to: production_approved
     actor: release_owner
-    requires: [owner_approval]
+    requires: [deployment_risk_and_readiness_evidence, owner_approval_when_adapter_policy_requires]
+    note: production_approved records authorization under adapter policy; it does not require a new human reply for every deployment
   - from: production_approved
     to: production_deployed
     actor: release_owner
