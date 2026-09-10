@@ -492,12 +492,6 @@ for (const entry of fs.readdirSync(projectsDir, { withFileTypes: true })) {
     if (at(adapter, 'discord', 'default_responder_alias') === undefined) {
       throw new Error(`adapter ${entry.name} enables Discord but omits discord.default_responder_alias (null means no default)`);
     }
-    if (at(adapter, 'ops_profile', 'stall_forbidden') !== true) {
-      throw new Error(`adapter ${entry.name} enables Discord but does not forbid stalling on a bounded production read`);
-    }
-    if (at(adapter, 'ops_profile', 'attention_routing', 'bot_work_must_not_land_on_owner') !== true) {
-      throw new Error(`adapter ${entry.name} enables Discord but still dumps bot work on the owner`);
-    }
   }
 
   for (const [tier, definition] of Object.entries(at(adapter, 'tiers') ?? {})) {

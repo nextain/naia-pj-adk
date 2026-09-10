@@ -265,6 +265,15 @@ function requireGatewayContract(gateway, label) {
  * validator silently skip policy checks.
  */
 export function assertAdapterContractShape(adapter, label = 'adapter') {
+  return assertContract(adapter, label, false);
+}
+
+/** Validate reusable host policy without claiming deployment readiness. */
+export function assertAdapterPolicyContract(adapter, label = 'policy adapter') {
+  return assertContract(adapter, label, true);
+}
+
+function assertContract(adapter, label, policyOnly) {
   requireType(adapter, 'object', label);
   requireKeys(adapter, ['profile'], label);
   requireString(adapter.profile, `${label}.profile`);
@@ -272,13 +281,14 @@ export function assertAdapterContractShape(adapter, label = 'adapter') {
     throw new Error(`${label}.profile must be one of ${PROFILE_NAMES.join(', ')}, found ${adapter.profile}`);
   }
   const rules = PROFILE_RULES[adapter.profile];
-  requireKeys(adapter, rules.sections, label);
+  requireKeys(adapter, policyOnly ? CORE_SECTIONS : rules.sections, label);
   requireKeys(adapter, ['policy_contract_version'], label);
   requireNumber(adapter.policy_contract_version, `${label}.policy_contract_version`);
   if (adapter.policy_contract_version !== POLICY_CONTRACT_VERSION) {
     throw new Error(`${label}.policy_contract_version must be ${POLICY_CONTRACT_VERSION}`);
   }
   for (const dotted of rules.required) {
+    if (policyOnly && !['workspace.ssh_home_pattern', 'workspace.branch_pattern', 'commands.validate'].includes(dotted)) continue;
     if (!hasPath(adapter, dotted)) {
       throw new Error(`${label}.${dotted} is required by the ${adapter.profile} profile`);
     }
@@ -418,10 +428,15 @@ export function assertAdapterContractShape(adapter, label = 'adapter') {
 
   const commands = adapter.commands;
   requireType(commands, 'object', `${label}.commands`);
-  requireKeys(commands, adapter.profile === 'server'
+  requireKeys(commands, !policyOnly && adapter.profile === 'server'
     ? ['validate', 'deploy_dev', 'deploy_production']
     : ['validate'], `${label}.commands`);
   requireString(commands.validate, `${label}.commands.validate`);
+
+  if (policyOnly) {
+    assertOpsProfile(adapter, label);
+    return;
+  }
 
   // A local-profile team registers the devices that run its work, because a
   // round is claimed by a device and a claim by an unregistered device names
@@ -525,6 +540,20 @@ function assertOpsProfile(adapter, label) {
   );
   requireType(opsProfile.attention_routing.our_turn, 'string', `${label}.ops_profile.attention_routing.our_turn`);
   requireType(opsProfile.attention_routing.re_ask_fallback_to_owner, 'boolean', `${label}.ops_profile.attention_routing.re_ask_fallback_to_owner`);
+  if (adapter.discord.enabled === true) {
+    if (opsProfile.stall_forbidden !== true) {
+      throw new Error(`${label}.ops_profile.stall_forbidden must forbid stalling on bounded production reads`);
+    }
+    if (opsProfile.attention_routing.bot_work_must_not_land_on_owner !== true) {
+      throw new Error(`${label}.ops_profile.attention_routing.bot_work_must_not_land_on_owner must keep bot work with the agent`);
+    }
+    if (opsProfile.attention_routing.our_turn !== 'dispatch_not_escalate_to_owner') {
+      throw new Error(`${label}.ops_profile.attention_routing.our_turn must dispatch owed bot work`);
+    }
+    if (opsProfile.attention_routing.re_ask_fallback_to_owner !== false) {
+      throw new Error(`${label}.ops_profile.attention_routing.re_ask_fallback_to_owner must preserve the validated recipient`);
+    }
+  }
 }
 
 export {

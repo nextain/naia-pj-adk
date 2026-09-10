@@ -14,6 +14,7 @@ import {
   validateParticipantRegistry,
 } from './lib/participant-registry.mjs';
 import { mutationWindowStatus } from './lib/mutation-window.mjs';
+import { contactWindowStatus, deploymentApprovalRequirement } from './lib/common-policy.mjs';
 import {
   buildProjectBackendArgs,
   isObject,
@@ -201,14 +202,9 @@ function requireCurrentWindow(schedule, day, hour, now, label) {
     requireWindow(schedule, day, hour, label);
     return;
   }
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: schedule.timezone,
-    weekday: 'short',
-    hour: 'numeric',
-    hourCycle: 'h23',
-  }).formatToParts(now ?? new Date());
-  const part = (type) => parts.find((item) => item.type === type)?.value;
-  requireWindow(schedule, part('weekday'), Number(part('hour')), label);
+  if (!contactWindowStatus(schedule, now ?? new Date()).allowed) {
+    throw rejected(`the requested time is outside the ${label} window`);
+  }
 }
 
 function requireParticipantWindow(actor, now) {
@@ -393,7 +389,9 @@ function evaluatePolicy({
       if ([actor.alias, evidence.assignee].includes(reviewer.alias)) {
         throw rejected('deployment review must be independent of executor and issue assignee');
       }
-      if (review.system_risk !== 'high' && review.traffic_risk !== 'high' && !review.human_only_decision) {
+      const approvalDecision=deploymentApprovalRequirement({policy:adapter.team_policy.approval.production_deploy,
+        systemRisk:review.system_risk,trafficRisk:review.traffic_risk,humanOnlyDecision:review.human_only_decision,reviewPrepared:true});
+      if (approvalDecision.action === 'continue_host_gates') {
         requireProjectBackendCommand(adapter, operation, command, commandArgs, revision);
         return;
       }
