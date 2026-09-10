@@ -3,10 +3,22 @@ import fs from 'node:fs';
 import test from 'node:test';
 import {parseYaml} from './lib/yaml-lite.mjs';
 import {assertAdapterContractShape,assertAdapterPolicyContract} from './lib/adapter-contract.mjs';
-import {contactWindowStatus,deploymentApprovalRequirement} from './lib/common-policy.mjs';
+import {contactWindowStatus,deploymentApprovalRequirement,humanOnlyDecisionRequirement} from './lib/common-policy.mjs';
 
 const contact={timezone:'Asia/Seoul',days:['mon','tue','wed','thu','fri'],start_hour:10,end_hour:18};
 const decision=(extra={})=>deploymentApprovalRequirement({policy:'high_risk_only',systemRisk:'low',trafficRisk:'low',humanOnlyDecision:false,reviewPrepared:true,...extra});
+
+test('technical acceptance never becomes a human business decision by a category label',()=>{
+  for(const kind of ['purchase','contract','license','payment_key']) {
+    for(const purpose of ['technical_verification','browser_verification','agent_preparation',undefined,'']) {
+      assert.equal(humanOnlyDecisionRequirement({kind,purpose}).action,'agent_preparation');
+    }
+  }
+  assert.equal(humanOnlyDecisionRequirement({kind:'contract',purpose:'spending_commitment'}).action,'agent_preparation');
+  for(const [kind,purpose] of Object.entries({purchase:'spending_commitment',contract:'legal_commitment',license:'license_terms',payment_key:'payment_key_issuance'})) {
+    assert.equal(humanOnlyDecisionRequirement({kind,purpose}).action,'human_decision');
+  }
+});
 
 test('contact uses the configured timezone with an exclusive closing hour',()=>{
   for(const [date,allowed] of [['2026-09-10T00:59:59Z',false],['2026-09-10T01:00:00Z',true],['2026-09-10T08:59:59Z',true],['2026-09-10T09:00:00Z',false],['2026-09-12T03:00:00Z',false]]){
