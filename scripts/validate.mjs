@@ -3,6 +3,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { parseYaml, at } from './lib/yaml-lite.mjs';
 import { assertAdapterContractShape, PROFILE_NAMES, PROFILE_RULES } from './lib/adapter-contract.mjs';
+import { assertMessagingOwnership } from './lib/messaging-contract.mjs';
 import { validateNativeCommandContract } from './native-command-validator.mjs';
 
 // Structure validation reads the contracts as data.
@@ -215,17 +216,7 @@ for (const section of ['deploy_gate', 'artifact', 'propagation', 'rollback', 'co
 // left in place everywhere else.
 const messaging = contract('.agents/context/messaging.yaml');
 requireKeys(messaging, ['provider', 'transports', 'instance_holds', 'instance_must_not_hold'], 'messaging contract');
-if (at(messaging, 'provider', 'package') !== 'naia-messaging') {
-  throw new Error('messaging contract must name naia-messaging as the provider package');
-}
-if (at(messaging, 'instance_holds') !== 'configuration_only') {
-  throw new Error('messaging contract must keep an instance to configuration only');
-}
-for (const forbidden of ['gateway_code', 'watchdog_scripts']) {
-  if (!(at(messaging, 'instance_must_not_hold') ?? []).includes(forbidden)) {
-    throw new Error(`messaging contract must keep ${forbidden} out of an instance`);
-  }
-}
+assertMessagingOwnership(messaging);
 
 // --- deployment profiles ----------------------------------------------------
 

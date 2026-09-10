@@ -179,3 +179,14 @@ approval_handling:
   work_review_signals: [report_without_next_action, approval_rejected_for_preparation, request_without_recipient_or_reply_template]
   work_review_signals_grant_no_authority: true
   invalid_wait_action: agent_review_with_evidence_before_state_change
+
+held_work:
+  state_source: explicit_host_state_with_native_human_provenance
+  never_infer_from: [bot_summary, reply_template, missing_agent_preparation, request_to_stop_asking_for_approval]
+  suppress_human_nudges: true
+  invalid_hold_action: bounded_agent_audit_before_state_change
+  audit_requires: [canonical_work_item_and_thread, native_human_authors_and_content, complete_history_before_release, current_wait_fingerprint, original_effect_reconciliation]
+  recheck_before_commit: [native_content_and_edits, newer_received_human_messages, current_source_and_wait]
+  preserve: [previous_wait_evidence, explicit_human_hold, unknown_effects, existing_authorization_scope]
+  audit_grants_authority: false
+  incomplete_audit_action: agent_reconciliation_without_automatic_recursive_replay

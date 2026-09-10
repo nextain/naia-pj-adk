@@ -73,3 +73,13 @@ test('no implicit owner or bot fallback exists', () => {
   const input = fixture(); delete input.request; delete input.context.requestId; input.lastHuman = 'bot';
   assert.equal(selectRequestRecipient(input).reason, 'no_registered_speaker');
 });
+
+test('an explicit host hold suppresses reminders without interpreting reply words', () => {
+  const input = fixture(); input.held = true;
+  assert.deepEqual(selectRequestRecipient(input), { action: 'none', reason: 'held' });
+  delete input.held;
+  input.request.replyTemplate = 'approve plan-a / hold reason';
+  assert.equal(selectRequestRecipient(input).action, 'ask');
+  input.held = 'false';
+  assert.equal(selectRequestRecipient(input).reason, 'invalid_work_state');
+});

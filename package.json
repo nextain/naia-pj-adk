@@ -4,7 +4,7 @@
   "private": false,
   "description": "Team-and-project-centered AI collaboration ADK",
   "scripts": {
-    "test": "npm run test:adapter-contract && npm run test:request-recipient && npm run test:qa-round && npm run test:policy-guard && npm run test:native-command && npm run test:project-policy-bridge && node scripts/validate.mjs && bash ops/gateway/selftest.sh && node scripts/public-safety-scan.mjs",
+    "test": "npm run test:adapter-contract && npm run test:request-recipient && npm run test:messaging-contract && npm run test:qa-round && npm run test:policy-guard && npm run test:native-command && npm run test:project-policy-bridge && node scripts/validate.mjs && bash ops/gateway/selftest.sh && node scripts/public-safety-scan.mjs",
     "test:adapter-contract": "node scripts/adapter-contract.test.mjs",
     "test:qa-round": "node profiles/local/scripts/qa-round.test.mjs",
     "test:policy-guard": "node scripts/policy-guard.test.mjs",
@@ -12,7 +12,8 @@
     "validate:participants": "node scripts/validate-participants.mjs",
     "gateway:selftest": "bash ops/gateway/selftest.sh",
     "test:project-policy-bridge": "node scripts/project-policy-bridge.test.mjs",
-    "test:request-recipient": "node scripts/request-recipient.test.mjs"
+    "test:request-recipient": "node scripts/request-recipient.test.mjs",
+    "test:messaging-contract": "node scripts/messaging-contract.test.mjs"
   },
   "engines": {
     "node": ">=20"

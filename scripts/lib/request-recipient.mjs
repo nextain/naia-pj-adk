@@ -12,11 +12,11 @@ const repair = reason => ({ action: 'agent_repair', reason });
 /** Select an alias, never an operational authority or a raw mention. */
 export function selectRequestRecipient({
   policy, context, request, registeredHumans, lastHuman,
-  now, workQueued = false, closed = false,
+  now, workQueued = false, closed = false, held = false,
 }) {
   if (!REQUEST_RECIPIENT_POLICIES.includes(policy)) return repair('unknown_policy');
-  if (typeof workQueued !== 'boolean' || typeof closed !== 'boolean') return repair('invalid_work_state');
-  if (closed || workQueued) return { action: 'none', reason: closed ? 'closed' : 'work_queued' };
+  if (typeof workQueued !== 'boolean' || typeof closed !== 'boolean' || typeof held !== 'boolean') return repair('invalid_work_state');
+  if (closed || held || workQueued) return { action: 'none', reason: closed ? 'closed' : held ? 'held' : 'work_queued' };
   if (!Array.isArray(registeredHumans) || !registeredHumans.every(nonempty)
       || new Set(registeredHumans).size !== registeredHumans.length) return repair('invalid_registry');
 
