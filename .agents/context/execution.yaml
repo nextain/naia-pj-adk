@@ -165,6 +165,16 @@ defect_origin:
 
 approval_handling:
   authorization_and_execution_readiness_are_separate: true
+  environment_scope:
+    policy_api: deploymentApprovalRequirement
+    default: all_declared_environment_classes
+    canonical_classes: [production, staging, dev, personal]
+    override_source: reviewed_host_policy_not_model_output
+    scope_requires: nonempty_dense_unique_canonical_classes
+    human_only_decisions: independent_of_deployment_environment_scope
+    outside_scope: continue_host_gates_without_new_human_request
+    unknown_environment_or_scope: agent_preparation
+    grants_execution_or_credential_authority: false
   preserve_existing_scope: true
   preparation_owner: agent
   short_reply_binding_requires: [authenticated_approver, current_reviewed_plan, same_work_item_target_and_effect, explicit_reply_to_plan]

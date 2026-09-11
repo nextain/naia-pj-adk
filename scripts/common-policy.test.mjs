@@ -47,6 +47,23 @@ test('missing review or unknown risk is agent preparation rather than a new appr
     assert.equal(decision(extra).action,'agent_preparation');
   }
 });
+test('an explicit host approval environment scope does not turn technical preparation into a person request',()=>{
+  for(const environment of ['dev','staging','personal']) {
+    assert.equal(decision({environment,systemRisk:'high'}).action,'approval_required');
+    for(const policy of ['required','high_risk_only']) {
+      const scoped={environment,approvalEnvironments:['production'],policy,systemRisk:'high'};
+      assert.equal(decision(scoped).action,'continue_host_gates');
+      assert.equal(decision({...scoped,reviewPrepared:false}).action,'agent_preparation');
+      assert.equal(decision({...scoped,trafficRisk:'unknown'}).action,'agent_preparation');
+      assert.equal(decision({...scoped,humanOnlyDecision:true}).action,'approval_required');
+    }
+  }
+  assert.equal(decision({environment:'production',approvalEnvironments:['production'],systemRisk:'high'}).action,'approval_required');
+});
+test('unknown environments and malformed host scopes cannot create a valid decision',()=>{
+  for(const environment of ['',null,'unknown','development'])assert.equal(decision({environment}).action,'agent_preparation');
+  for(const approvalEnvironments of [null,'production',[],['unknown'],['dev','dev'],[null],new Array(1),['dev',,]])assert.equal(decision({approvalEnvironments}).action,'agent_preparation');
+});
 test('policy-only validation cannot stand in for a complete deployment adapter',()=>{
   const source=parseYaml(fs.readFileSync(new URL('../projects/example/project.yaml',import.meta.url),'utf8'));
   const policy=structuredClone(source);delete policy.execution;delete policy.tiers;delete policy.guards;delete policy.commands.deploy_dev;delete policy.commands.deploy_production;

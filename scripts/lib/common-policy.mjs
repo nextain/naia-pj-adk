@@ -14,13 +14,22 @@ export function contactWindowStatus(schedule, now = Date.now()) {
     timezone:checked.timezone,day,hour};
 }
 
-export function deploymentApprovalRequirement({policy,systemRisk,trafficRisk,humanOnlyDecision,reviewPrepared}) {
+export function deploymentApprovalRequirement({policy,systemRisk,trafficRisk,humanOnlyDecision,reviewPrepared,environment='production',approvalEnvironments=['production','staging','dev','personal']}) {
   if (!['required','high_risk_only'].includes(policy)) return {action:'agent_preparation',reason:'invalid_approval_policy'};
+  if (!['production','staging','dev','personal'].includes(environment)) return {action:'agent_preparation',reason:'deployment_environment_required'};
+  if (!Array.isArray(approvalEnvironments)||approvalEnvironments.length===0
+      ||new Set(approvalEnvironments).size!==approvalEnvironments.length
+      ||Array.from(approvalEnvironments).some(value=>!['production','staging','dev','personal'].includes(value))) {
+    return {action:'agent_preparation',reason:'approval_environment_scope_required'};
+  }
   if (reviewPrepared!==true) return {action:'agent_preparation',reason:'review_preparation_required'};
   if (!['low','medium','high'].includes(systemRisk)||!['low','medium','high'].includes(trafficRisk)
       ||typeof humanOnlyDecision!=='boolean') return {action:'agent_preparation',reason:'risk_assessment_required'};
-  const required=policy==='required'||systemRisk==='high'||trafficRisk==='high'||humanOnlyDecision;
-  return {action:required?'approval_required':'continue_host_gates',reason:required?'policy_requires_authorization':'nonhigh_risk_reviewed'};
+  // Only a reviewed host policy may narrow this scope. Omitting it preserves
+  // the existing all-environment rule. Human-only decisions stay independent.
+  const inScope=approvalEnvironments.includes(environment);
+  const required=humanOnlyDecision||(inScope&&(policy==='required'||systemRisk==='high'||trafficRisk==='high'));
+  return {action:required?'approval_required':'continue_host_gates',reason:required?'policy_requires_authorization':inScope?'nonhigh_risk_reviewed':'environment_outside_approval_scope'};
 }
 
 // A technical acceptance contract is not a business/legal commitment. Hosts
