@@ -21,6 +21,23 @@ ops_profile:
   # that attention must not be parked on the wrong person.
   stall_forbidden: true
   never_infer_from_chat: true
+  # A registered operator replying "승인" to a concrete plan in the issue thread
+  # is the approval. Observed 2026-09-10 on onmam-dev #403: the contract bound an
+  # approval to a commit SHA, an exact command and an expiry, so the owner's own
+  # reply did not match it and was refused. A 30-minute reversible change spent
+  # four days producing readiness artifacts instead.
+  thread_reply_is_approval: true
+  # Readiness is the agent's work, and it scales with risk. Demanding a flagship
+  # review and an exclusive mutation lease for a change a backup can undo turns
+  # every task into preparation.
+  readiness_by_risk:
+    low: [backup_or_rollback_path, issue_record, post_change_verification]
+    medium: [backup_or_rollback_path, issue_record, post_change_verification]
+    high: [reviewed_script, rollback_artifact, independent_risk_review, exclusive_mutation_lease, public_smoke]
+  never_ask_again_for: [readiness, backup, runner, review, lease, worktree_state, format]
+  # If a backup makes it undoable, it is not high. Raising the grade requires
+  # writing down what exactly cannot be undone.
+  system_risk_medium_examples: [wp_theme_plugin_copy_with_backup, container_restart, image_swap, formal_deploy_script]
   report_unattended_action_on: [issue, thread]
   attention_routing:
     # Bot silence is a queueing problem, not a reason to turn the release owner
