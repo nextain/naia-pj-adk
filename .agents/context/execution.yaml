@@ -217,3 +217,35 @@ held_work:
   preserve: [previous_wait_evidence, explicit_human_hold, unknown_effects, existing_authorization_scope]
   audit_grants_authority: false
   incomplete_audit_action: agent_reconciliation_without_automatic_recursive_replay
+
+execution_isolation:
+  # 왜: 모든 작업이 수신자의 체크아웃 하나에서 실행되면 동시 실행이 사실상 1건으로
+  # 묶인다. 사람의 새 요청이 앞 작업 뒤에서 몇 시간을 기다리고, 한 작업이 공유 HEAD를
+  # 바꾸면 다른 작업이 조용히 깨진다. 첫 실증 프로젝트에서 두 사고가 모두 일어났다.
+  # 슬롯을 늘리기 전에 작업공간 공유를 먼저 끊어야 한다.
+  unit: issue
+  # 왜: 격리는 "다른 디렉터리"가 아니라 "수신자 체크아웃 바깥"이어야 한다. 같은
+  # 체크아웃 안의 하위 디렉터리는 여전히 같은 HEAD와 인덱스를 공유한다.
+  workspace: worktree_per_issue_outside_receiver_checkout
+  # 왜: 이슈마다 브랜치를 새로 만들면 한 이슈에 브랜치가 쌓여 무엇이 정본인지 알 수
+  # 없게 된다. 이미 있는 그 이슈의 브랜치를 잇는다.
+  branch: issue-<n>/<agent>
+  branch_reuse: existing_issue_branch
+  base: integration_branch
+  concurrency:
+    # 왜: 슬롯이 1개면 격리를 해도 대기 줄은 그대로다. 격리의 목적은 동시 실행이다.
+    slots_min: 2
+    # 왜: 격리 단위가 이슈이므로 동시 실행 단위도 이슈다. 같은 이슈의 두 실행은 같은
+    # 워크트리를 고치고 같은 스레드에 답을 두 번 보낸다.
+    same_issue: 1
+    # 왜: 워크트리는 나눌 수 있어도 배포 대상·공유 DB·운영은 하나뿐이다. 이것들은
+    # 잠금으로 직렬화한다.
+    shared_mutations_require_lock: [deploy, shared_database, production]
+  prune:
+    after: issue_closed
+    # 왜: 남은 작업물을 자동으로 지우면 되돌릴 수 없다. dirty면 보존하고 보고한다.
+    never_remove_dirty: true
+    never_delete_branches: true
+  # 왜: 수신자의 체크아웃은 하네스가 실행되는 곳이다. 워커가 그것을 바꾸면 다음
+  # 수신이 바뀐 코드로 돈다.
+  receiver_checkout: never_modified_by_workers
