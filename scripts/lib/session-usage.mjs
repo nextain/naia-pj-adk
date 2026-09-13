@@ -13,7 +13,13 @@
  * 런타임 어댑터가 갖춰야 하는 것 (`runtimes/*.mjs`):
  *
  *   name                 문자열. 기록과 영수증에 그대로 남는다.
- *   meter                { kind: 'subscription' | 'metered' | 'local', unit, note }
+ *   meter                { kind, unit, note }
+ *
+ *     kind  'subscription' | 'metered' | 'local'
+ *     unit  사람에게 보여 줄 표시 단위. **없으면 null 이고, 그때 note 가 이유를 적는다.**
+ *           구독이라 통화 환산이 없으면 null, 계정 허용량을 퍼센트로 보여 주면 '%'.
+ *           'tokens' 는 쓰지 않는다 — 토큰은 모든 런타임의 공통 단위이지 표시 방법이 아니다.
+ *     note  그 계기를 어떻게 읽어야 하는지 한 줄. 특히 숫자가 실제 청구가 아닐 때 밝힌다.
  *   sessions({sinceMs})  아래 세션 레코드의 배열
  *   live()               지금 살아 있는 { id, pid, cwd } 배열. 없으면 빈 배열.
  *
@@ -34,8 +40,9 @@
 import * as grok from './runtimes/grok.mjs';
 import * as claude from './runtimes/claude.mjs';
 import * as codex from './runtimes/codex.mjs';
+import * as opencode from './runtimes/opencode.mjs';
 
-export const RUNTIMES = { grok, claude, codex };
+export const RUNTIMES = { grok, claude, codex, opencode };
 
 /** 멈춰도 되는 종류. 'interactive' 만 빠져 있다. */
 export const STOPPABLE_KINDS = new Set(['descendant', 'scheduled', 'headless']);
