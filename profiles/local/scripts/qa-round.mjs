@@ -118,13 +118,14 @@ export function commitAndPush(root, paths, message, env = process.env) {
 export function roundDir(root, id) { return path.join(root, 'qa', 'rounds', id); }
 function claimFile(root, id, device, bundle) { return path.join(roundDir(root, id), 'claims', device, `${bundle}.json`); }
 function receiptDir(root, id, device, bundle, attempt) { return path.join(roundDir(root, id), 'receipts', device, bundle, `attempt-${attempt}`); }
+function canonicalText(text) { return String(text).replaceAll('\r\n', '\n'); }
 
 export function loadRound(root, id) {
   const dir = roundDir(root, id);
   if (!fs.existsSync(path.join(dir, 'round.json'))) fail(`round not found: ${id}`);
   const round = readJson(path.join(dir, 'round.json'));
   const catalogText = fs.readFileSync(path.join(dir, 'catalog.json'), 'utf8');
-  if (sha256(catalogText) !== round.catalogHash) fail(`catalog of round ${id} was modified after it was frozen`);
+  if (sha256(canonicalText(catalogText)) !== round.catalogHash) fail(`catalog of round ${id} was modified after it was frozen`);
   const catalog = JSON.parse(catalogText);
   return { dir, round, catalog, bundles: bundlesOf(catalog) };
 }
@@ -256,7 +257,7 @@ export function open(root, { id, catalogFile, lanes, candidates = {}, openedBy =
   }
   const catalog = validateCatalog(readJson(catalogFile));
   const catalogText = `${JSON.stringify(catalog, null, 2)}\n`;
-  const round = { id, status: 'open', openedAt: nowIso(), openedBy, lanes, candidates, catalogHash: sha256(catalogText), cases: catalog.cases.length, bundles: bundlesOf(catalog).length };
+  const round = { id, status: 'open', openedAt: nowIso(), openedBy, lanes, candidates, catalogHash: sha256(canonicalText(catalogText)), cases: catalog.cases.length, bundles: bundlesOf(catalog).length };
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'catalog.json'), catalogText);
   writeJson(path.join(dir, 'round.json'), round);
