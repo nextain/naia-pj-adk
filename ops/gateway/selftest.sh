@@ -171,6 +171,8 @@ out="$(runaudit "$tmp/resolved.json" 'repo#1\tOPEN\nrepo#2\tCLOSED\n')"
 printf '%s' "$out" | grep -q '후속 조치는 정리됨' && ok "사람이 정리한 것은 참고로만 센다" || bad "사람이 정리한 것은 참고로만 센다" "참고 없음"
 printf '%s' "$out" | grep -q '정리 근거 없음' && bad "정리 근거가 있으면 불일치 아님" "불일치로 셌다" || ok "정리 근거가 있으면 불일치 아님"
 
+python3 "$here/test-audit-report.py" || fail=1
+
 echo
 if [ "$fail" -eq 0 ]; then echo "gateway selftest passed"; else echo "gateway selftest FAILED"; fi
 exit "$fail"

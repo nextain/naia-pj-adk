@@ -69,6 +69,8 @@ for it in sorted(items, key=lambda x: x.get("key", "")):
         notes.append(f"{key}: GitHub 은 열려 있으나 후속 조치는 정리됨 ({it.get('closedBy')})")
     if not done and ghs == "CLOSED":
         problems.append(f"{key}: GitHub 은 닫혔는데 추적표는 {state} 다 (배분기가 계속 태운다)")
+    if done and ghs == "CLOSED" and tstat == "열림":
+        problems.append(f"{key}: 이슈와 추적표는 완료인데 스레드는 열려 있다 (종료 후속 확인 필요)")
     if not done and tstat != "열림":
         problems.append(f"{key}: 진행 중인데 스레드가 {tstat} 이다")
     if not done and bstat == "없음":
