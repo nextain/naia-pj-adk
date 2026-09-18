@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nextain.dev/naia-pj-adk/resource-coordination.schema.json",
+  "title": "공용 자원 조율 정책 (Server Profile)",
+  "description": "서버 프로파일에서 복수의 에이전트·세션·워커가 호스트 자원을 경합 없이 공유하기 위한 10슬롯 레지스트리 및 리스 계약 스키마.",
+  "type": "object",
+  "required": [
+    "version",
+    "total_slots",
+    "pools",
+    "max_slots_per_tree",
+    "lease_seconds",
+    "max_lease_seconds",
+    "heartbeat_seconds",
+    "automatic_expiry_release"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "자원 조율 정책 버전"
+    },
+    "installation_fence_version": {
+      "type": "integer",
+      "description": "설치 펜스 버전"
+    },
+    "issue": {
+      "type": "string",
+      "description": "정책 생성/도입 근거 이슈"
+    },
+    "host": {
+      "type": "string",
+      "description": "대상 호스트 논리 식별자"
+    },
+    "state_directory": {
+      "type": "string",
+      "description": "레지스트리 및 락 파일 저장 상태 디렉터리 경로"
+    },
+    "total_slots": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "description": "호스트 총 가용 슬롯 수 (기본 10개)"
+    },
+    "pools": {
+      "type": "object",
+      "description": "목적별 슬롯 할당 풀 (예: gateway, interactive, dashboard)",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "max_slots_per_tree": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "단일 에이전트 트리당 최대 점유 가능 슬롯 수"
+    },
+    "lease_seconds": {
+      "type": "integer",
+      "minimum": 10,
+      "description": "기본 리스 유효 시간(초)"
+    },
+    "max_lease_seconds": {
+      "type": "integer",
+      "minimum": 10,
+      "description": "최대 리스 연장 한도 시간(초)"
+    },
+    "heartbeat_seconds": {
+      "type": "integer",
+      "minimum": 5,
+      "description": "하트비트 갱신 권장 주기(초)"
+    },
+    "recent_event_limit": {
+      "type": "integer",
+      "minimum": 10,
+      "description": "최근 이벤트 로그 보관 건수"
+    },
+    "automatic_expiry_release": {
+      "type": "boolean",
+      "description": "만료 시 자동 해제 허용 여부 (false인 경우 침묵 해제 방지를 위해 alarm 상태 전환)"
+    },
+    "automatic_pool_borrowing": {
+      "type": "boolean",
+      "description": "풀 간 자동 슬롯 차용 허용 여부"
+    },
+    "resource_roots": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "조율 대상 자원 루트 카테고리 (예: host, database, repository, worktree, cloud)"
+    },
+    "aliases": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "자원 경로 별칭 매핑"
+    },
+    "proposed_cgroup_limits": {
+      "type": "object",
+      "description": "풀별 cgroup 리소스 제한 제안"
+    },
+    "runbook": {
+      "type": "string",
+      "description": "공용 자원 조율 런북 매뉴얼 경로"
+    }
+  }
+}
