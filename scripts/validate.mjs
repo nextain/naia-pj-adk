@@ -82,6 +82,7 @@ const required = [
   'scripts/native-command-validator.mjs',
   'ops/gateway/native-command-contract.json',
   'schemas/participants.schema.json',
+  'schemas/resource-coordination.schema.json',
   '.github/workflows/production-deploy.yml',
 ];
 for (const file of required) {
@@ -528,6 +529,11 @@ if (participantItem?.additionalProperties !== false
     || !participantItem?.required?.includes('roles')
     || participantItem?.properties?.enabled?.type !== 'boolean') {
   throw new Error('participant schema must require typed role and enabled fields');
+}
+
+const resourceCoordinationSchema = JSON.parse(read('schemas/resource-coordination.schema.json'));
+if (resourceCoordinationSchema.additionalProperties !== false || !resourceCoordinationSchema.required?.includes('pools')) {
+  throw new Error('resource-coordination schema must reject unknown root fields and require pools');
 }
 
 const ignore = read('.gitignore');

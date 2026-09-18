@@ -7,6 +7,8 @@ node_modules/
 coverage/
 *.log
 .DS_Store
+__pycache__/
+*.py[cod]
 
 # 제품 git clone. 어댑터(projects/)와 섞지 않는다.
 /checkouts/
