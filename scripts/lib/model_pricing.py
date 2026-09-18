@@ -91,7 +91,7 @@ def normalize_model_name(raw_name: Optional[str]) -> str:
 
     if "flash" in cleaned:
         return "gemini-flash"
-    if "gemini" in cleaned and "pro" in cleaned:
+    if "pro" in cleaned:
         return "gemini-pro"
     if "sonnet" in cleaned:
         return "claude-sonnet"
@@ -178,3 +178,53 @@ def calculate_step_cost(
     res["steps"] = s
     res["estimated_tokens_per_step"] = avg_per_step
     return res
+
+
+def get_model_multiplier(model_name: Optional[str]) -> float:
+    """Returns the quota consumption multiplier relative to baseline Flash (1.0x)."""
+    key = normalize_model_name(model_name)
+    multipliers = {
+        "gemini-flash": 1.0,
+        "gemini-pro": 5.0,
+        "claude-haiku": 1.0,
+        "claude-sonnet": 3.0,
+        "claude-opus": 10.0,
+        "gpt-4o-mini": 1.0,
+        "gpt-4o": 4.0,
+        "default": 1.0,
+    }
+    return multipliers.get(key, 1.0)
+
+
+def predict_quota_burn(
+    raw_steps: int,
+    model_name: Optional[str] = None,
+    base_flash_capacity: int = 80000,
+    multiplier: Optional[float] = None
+) -> Dict[str, Any]:
+    """Calculates weighted steps and quota burn percentage for rolling window."""
+    mult = multiplier if multiplier is not None else get_model_multiplier(model_name)
+    weighted_steps = int(raw_steps * mult)
+    burn_pct = round(min(100.0, (weighted_steps / max(1, base_flash_capacity)) * 100), 1)
+    effective_capacity = int(base_flash_capacity / mult) if mult > 0 else base_flash_capacity
+
+    risk_level = "safe"
+    risk_label = "정상 여유 (Safe)"
+    if burn_pct >= 95:
+        risk_level = "critical"
+        risk_label = "소진 임박 (일시 대기 가능)"
+    elif burn_pct >= 80:
+        risk_level = "warning"
+        risk_label = "소진 주의 (80% 이상)"
+
+    return {
+        "raw_steps": raw_steps,
+        "multiplier": mult,
+        "weighted_steps": weighted_steps,
+        "base_capacity": base_flash_capacity,
+        "effective_capacity": effective_capacity,
+        "burn_pct": burn_pct,
+        "risk_level": risk_level,
+        "risk_label": risk_label,
+    }
+
