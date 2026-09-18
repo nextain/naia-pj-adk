@@ -205,14 +205,14 @@ def predict_quota_burn(
     """Calculates weighted steps and quota burn percentage for rolling window."""
     mult = multiplier if multiplier is not None else get_model_multiplier(model_name)
     weighted_steps = int(raw_steps * mult)
-    burn_pct = round(min(100.0, (weighted_steps / max(1, base_flash_capacity)) * 100), 1)
+    burn_pct = round((weighted_steps / max(1, base_flash_capacity)) * 100, 1)
     effective_capacity = int(base_flash_capacity / mult) if mult > 0 else base_flash_capacity
 
     risk_level = "safe"
     risk_label = "정상 여유 (Safe)"
     if burn_pct >= 95:
         risk_level = "critical"
-        risk_label = "소진 임박 (일시 대기 가능)"
+        risk_label = "소진 임박 (일시 대기 가능)" if burn_pct <= 100.0 else f"한도 초과 ({burn_pct}%)"
     elif burn_pct >= 80:
         risk_level = "warning"
         risk_label = "소진 주의 (80% 이상)"
