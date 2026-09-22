@@ -68,6 +68,7 @@ Discord/GitHub 인증과 파일 권한은 이 저장소 밖의 trusted-host 경�
 
 자세한 신규 기여·실패 복구·롤백 절차는 [팀 개발 운영 절차](docs/WORKFLOW.ko.md),
 디렉터리 규칙은 [작업공간 레이아웃](docs/WORKSPACE.ko.md)을 참고합니다.
+기획부터 시험·검수까지의 개발 절차는 `docs/pipeline/`에 있습니다.
 
 ## 독립 clone에서 첫 기여
 
