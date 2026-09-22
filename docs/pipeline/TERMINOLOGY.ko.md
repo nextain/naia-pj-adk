@@ -1,6 +1,6 @@
 # 표준 용어 사전 (Terminology & Communication Policy)
 
-표준 정본: `.agents/context/terminology.yaml`  
+관련 계약: `.agents/context/development-method.yaml`(변경 분류, 사용자 시나리오, 기능 명세). 이 문서는 그 위에 시험 순서와 영수증 규칙을 사람이 읽는 말로 적는다.  
 적용 범위: 워크스페이스 전역 (문서, 코드 주석, PR/이슈, 회고)
 
 ---

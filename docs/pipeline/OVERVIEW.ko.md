@@ -1,7 +1,7 @@
 # 문서 우선 전체 범위 기능 파이프라인
 
 작성일: 2026-09-20  
-표준 정본: `.agents/workflows/issue-driven-development.yaml`, `.agents/context/terminology.yaml`
+관련 계약: `.agents/context/development-method.yaml`(변경 분류, 사용자 시나리오, 기능 명세). 이 문서는 그 위에 시험 순서와 영수증 규칙을 사람이 읽는 말로 적는다.  
 
 이 문서는 기능 작업의 **판정 순서**를 정의한다. 문서에 적힌 순서만으로 현재 ADK가 자동 집행된다고 주장하지 않으며, 파이프라인의 범위와 판정 규칙을 기록한다.
 

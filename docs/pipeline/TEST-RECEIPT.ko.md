@@ -1,6 +1,6 @@
 # 통합 시험(IT) / E2E 시험 영수증 표준 양식
 
-표준 정본: `.agents/workflows/issue-driven-development.yaml`, `.agents/context/terminology.yaml`
+관련 계약: `.agents/context/development-method.yaml`(변경 분류, 사용자 시나리오, 기능 명세). 이 문서는 그 위에 시험 순서와 영수증 규칙을 사람이 읽는 말로 적는다.  
 
 이 문서는 통합 시험(IT) 및 사용자 여정 관통 시험(E2E)의 결과를 기록하는 표준 영수증 양식이다.  
 실행한 시험 수·실패 수·종료 코드를 정량 칸으로 두어 **"실패가 있는데 완료로 닫음"**이나 **"Mock 테스트를 실제 통합 관통으로 둔갑"**시키는 거짓 완료를 원천 방지한다.

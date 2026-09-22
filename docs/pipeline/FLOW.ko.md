@@ -1,7 +1,7 @@
 # 문서·이슈·개발 큐·검증 연결 워크플로우
 
 작성일: 2026-09-20  
-표준 정본: `.agents/workflows/issue-driven-development.yaml`
+관련 계약: `.agents/context/development-method.yaml`(변경 분류, 사용자 시나리오, 기능 명세). 이 문서는 그 위에 시험 순서와 영수증 규칙을 사람이 읽는 말로 적는다.  
 
 이 문서는 목표 실행 순서를 설명한다. 이 절차를 기계적으로 강제하는 도구는 각 인스턴스가 붙인다.
 
