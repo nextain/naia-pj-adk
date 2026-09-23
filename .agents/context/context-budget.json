@@ -1,0 +1,19 @@
+{
+  "_doc": "Byte budgets per read set. Agents re-send every file they read on each later model call. When a set is over budget, split content into docs/ or docs/archive/; do not raise the budget. Enforced by scripts/validate.mjs.",
+  "sets": [
+    {"name": "always", "why": "root rules attached to every call", "max_bytes": 12000,
+     "files": ["AGENTS.md", "CLAUDE.md"]},
+    {"name": "core", "why": "AGENTS.md mandatory reads 1-4 and 8", "max_bytes": 40000,
+     "files": [".agents/context/project-policy.yaml", ".agents/context/workflow.yaml",
+               ".agents/context/development-method.yaml", ".agents/context/execution.yaml",
+               "docs/WORKSPACE.ko.md"]},
+    {"name": "server-profile", "why": "mandatory read 5, server", "max_bytes": 24000,
+     "files": ["profiles/server/README.ko.md", "profiles/server/profile.yaml",
+               "profiles/server/context/execution.yaml"]},
+    {"name": "local-profile", "why": "mandatory read 5, local", "max_bytes": 16000,
+     "files": ["profiles/local/README.ko.md", "profiles/local/profile.yaml",
+               "profiles/local/context/qa-rounds.yaml"]},
+    {"name": "discord", "why": "mandatory read 6", "max_bytes": 20000,
+     "files": [".agents/context/messaging.yaml", ".agents/context/discord.yaml"]}
+  ]
+}
