@@ -1,0 +1,37 @@
+{
+  "_doc": "PreToolUse guard policy (scripts/lib/pretool-guard.mjs). Built-ins always deny: push to protected branches, force push, remote ref delete, recursive delete of roots/home/repository. Adapters add their own risk surface below. approval = allowed only with a lease for the exact command, created by a human with scripts/approve-high-risk.mjs. A rule matches the full command text by default; \"match\": \"structure\" ignores quoted free text such as commit messages.",
+  "protected_branches": [
+    "main",
+    "master"
+  ],
+  "lease": {
+    "path": ".agents/work/high-risk-approval.json",
+    "max_minutes": 15
+  },
+  "protected_paths": [
+    ".agents/work/high-risk-approval.json",
+    "approve-high-risk.mjs"
+  ],
+  "deny": [],
+  "approval": [
+    {
+      "id": "public-visibility",
+      "pattern": "\\bgh\\s+repo\\s+(edit\\b.*--visibility|delete\\b|rename\\b|archive\\b)",
+      "reason": "Repository visibility, deletion or renaming is a public, owner-approved action.",
+      "match": "structure"
+    },
+    {
+      "id": "public-release",
+      "pattern": "\\bgh\\s+release\\s+(create|delete|edit)\\b",
+      "reason": "Publishing or changing a release is a public, owner-approved action.",
+      "match": "structure"
+    },
+    {
+      "id": "infra-apply",
+      "pattern": "\\bterraform\\s+(apply|destroy|import)\\b|\\bterraform\\s+state\\s+(rm|mv|push)\\b",
+      "reason": "Infrastructure state changes need a reviewed plan and human approval.",
+      "match": "structure"
+    }
+  ],
+  "inspect_scripts": []
+}

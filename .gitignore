@@ -18,3 +18,4 @@ __pycache__/
 .agents/session-contracts/
 .agents/harness/
 .agents/progress/*.local.*
+.agents/work/
