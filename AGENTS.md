@@ -43,7 +43,7 @@ Before acting, read:
 
 Deployment-neutral contracts live in `.agents/context/`, per-profile contracts and modules in `profiles/<profile>/`, reusable project scaffolding in `projects/_template/` and `projects/_template-local/`, and project-specific facts only in `projects/<project>/`. A contract that assumes a shared deployment target belongs in the server profile: asking a local team to answer it produces an adapter full of nulls that reads as answered. Product git clones live in gitignored `checkouts/`, never next to adapters. Branch-specific agent context lives in `data-branch/`. Execution evidence belongs in GitHub issues; `.agents/progress/` contains only sanitized local review artifacts.
 
-`AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` are byte-identical. Change one, change the others. `CODEX.md` is a short pointer only.
+`AGENTS.md` is the only rule text. `CLAUDE.md` and `GEMINI.md` are the one-line import `@AGENTS.md` and `CODEX.md` is a short pointer, so no tool loads the rules twice. Agents re-send this file on every model call: keep it under 12,000 bytes and put long procedures in `docs/` or `.agents/context/`, read on demand.
 
 ## Completion
 

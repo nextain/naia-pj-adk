@@ -97,9 +97,17 @@ try {
 
 // --- entrypoint mirrors -----------------------------------------------------
 
-const canonical = read('AGENTS.md');
+// Agents re-send the attached rule files on every model call, and some CLIs attach
+// both AGENTS.md and CLAUDE.md. Byte mirrors paid for the same text twice.
 for (const mirror of ['CLAUDE.md', 'GEMINI.md']) {
-  if (canonical !== read(mirror)) throw new Error(`AGENTS.md and ${mirror} must be byte-identical`);
+  if (read(mirror).trim() !== '@AGENTS.md') {
+    throw new Error(`${mirror} must be the one-line import @AGENTS.md; keep the rules in AGENTS.md only`);
+  }
+}
+const AGENTS_MAX_BYTES = 12000;
+const agentsBytes = Buffer.byteLength(read('AGENTS.md'), 'utf8');
+if (agentsBytes > AGENTS_MAX_BYTES) {
+  throw new Error(`AGENTS.md is ${agentsBytes} bytes; keep it under ${AGENTS_MAX_BYTES} and move long procedures to docs/ or .agents/context/`);
 }
 const branchTemplate = read('data-branch/_template/AGENTS.md');
 if (branchTemplate !== read('data-branch/_template/CLAUDE.md')) {
