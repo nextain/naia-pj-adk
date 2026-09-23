@@ -6,7 +6,8 @@
 ```text
 <adk-root>/                         ← 이 저장소
 ├── README.md                       ← 사람용 입구
-├── AGENTS.md / CLAUDE.md / GEMINI.md
+├── AGENTS.md                       ← 유일한 규칙 본문 (12,000B 이하)
+├── CLAUDE.md / GEMINI.md           ← `@AGENTS.md` 한 줄
 ├── docs/
 ├── .agents/context/                ← 배치와 무관한 공통 계약
 ├── profiles/                       ← 배치 프로파일
