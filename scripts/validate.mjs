@@ -104,6 +104,19 @@ for (const mirror of ['CLAUDE.md', 'GEMINI.md']) {
     throw new Error(`${mirror} must be the one-line import @AGENTS.md; keep the rules in AGENTS.md only`);
   }
 }
+// Read-set budgets: every file an agent reads rides along on each later call.
+const budget = JSON.parse(read('.agents/context/context-budget.json'));
+requireType(budget.sets, 'array', 'context budget sets');
+for (const set of budget.sets) {
+  let total = 0;
+  for (const file of set.files) {
+    if (!fs.existsSync(path.join(root, file))) throw new Error(`context budget ${set.name} lists a missing file: ${file}`);
+    total += fs.statSync(path.join(root, file)).size;
+  }
+  if (total > set.max_bytes) {
+    throw new Error(`context budget ${set.name} is ${total} bytes (max ${set.max_bytes}); split content into docs/ or docs/archive/ instead of raising the budget`);
+  }
+}
 const AGENTS_MAX_BYTES = 12000;
 const agentsBytes = Buffer.byteLength(read('AGENTS.md'), 'utf8');
 if (agentsBytes > AGENTS_MAX_BYTES) {
