@@ -16,7 +16,10 @@ def main(argv: list[str] | None = None) -> None:
     url = database_url_from_env(os.environ)
     store = open_store(url)
     if url != "memory://":
-        store.ensure_schema()
+        try:
+            store.ensure_schema()
+        except Exception as exc:
+            raise SystemExit("schema_unavailable %s" % type(exc).__name__) from None
     bind = os.environ.get("NAIA_QUEUE_BIND", "localhost").strip() or "localhost"
     port = int(os.environ.get("NAIA_QUEUE_PORT", "8096"))
     expected = os.environ.get("NAIA_QUEUE_API_TOKEN", "")
