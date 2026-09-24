@@ -7,8 +7,11 @@ profile: local
 meaning: >
   A team whose members each clone the product repositories onto their own
   machine. There is no shared host, no server home directory and no deployment
-  tier, so the queue that carries work between devices is the repository
-  itself.
+  tier, so the round queue that carries QA work between devices is the
+  repository itself. Records that several machines must read and write
+  immediately live in packages/live-queue. That store's source of truth is
+  Postgres, the default database is localhost database naia_comm, and another
+  database URL replaces that default. Callers use its HTTP API.
 placement: 개인 ADK 의 projects/ 아래, 제품 저장소와 형제
 contracts:
   core: .agents/context/execution.yaml
@@ -24,6 +27,8 @@ components:
     role: 저장소 목록. 버전 고정이 아니라 목록이다
   - path: handoffs/
     role: 세션과 기기를 넘는 인계 기록
+  - path: packages/live-queue/
+    role: 실시간 공통 문서 저장소. 정본은 Postgres이고 기본 데이터베이스는 localhost의 naia_comm이다. 다른 주소로 바꿀 수 있다. 기기는 HTTP로만 붙는다.
 adapter_fields:
   sections: [project, workspace, roles, discord, commands, team_policy, ops_profile, local_workspace]
   required:

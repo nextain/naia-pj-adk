@@ -1,0 +1,15 @@
+[Unit]
+Description=Naia live queue
+After=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/naia-live-queue.env
+WorkingDirectory=/opt/naia-live-queue
+ExecStart=/opt/naia-live-queue/.venv/bin/python -m live_queue serve
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
