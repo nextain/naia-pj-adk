@@ -1,5 +1,5 @@
 import json
-import os
+import socket
 import threading
 import unittest
 import urllib.error
@@ -75,6 +75,30 @@ class HttpTests(unittest.TestCase):
             self.assertEqual(conflict.exception.code, 409)
             deleted = _json("DELETE", port, "/v1/items/job-1", headers={"Authorization": "Bearer secret1"})
             self.assertTrue(deleted["deleted"])
+        finally:
+            server.shutdown()
+
+    def test_chunked_put_is_stored(self):
+        server = _start(MemoryStore(), "secret1")
+        port = server.server_address[1]
+        body = b'{"status":"waiting"}'
+        chunk = b"PUT /v1/items/job-9 HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer secret1\r\nTransfer-Encoding: chunked\r\n\r\n%x\r\n%s\r\n0\r\n\r\n" % (len(body), body)
+        try:
+            with socket.create_connection(("localhost", port), timeout=5) as sock:
+                sock.sendall(chunk)
+                raw = b""
+                while b"\r\n\r\n" not in raw:
+                    raw += sock.recv(4096)
+                header, _, rest = raw.partition(b"\r\n\r\n")
+                length = 0
+                for line in header.split(b"\r\n"):
+                    if line.lower().startswith(b"content-length:"):
+                        length = int(line.split(b":", 1)[1].strip())
+                while len(rest) < length:
+                    rest += sock.recv(4096)
+            payload = json.loads(rest[:length].decode())
+            self.assertEqual(payload["document"]["status"], "waiting")
+            self.assertTrue(header.startswith(b"HTTP/1.1 200"))
         finally:
             server.shutdown()
 

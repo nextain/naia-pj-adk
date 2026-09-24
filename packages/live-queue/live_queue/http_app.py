@@ -5,6 +5,7 @@ from __future__ import annotations
 import hmac
 import json
 import re
+from http.client import parse_headers
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlsplit
 
@@ -26,8 +27,69 @@ class QueueServer(ThreadingHTTPServer):
         super().__init__(address, QueueHandler)
 
 
+class _PrefixReader:
+    def __init__(self, prefix: bytes, rest):
+        self._prefix = prefix
+        self._rest = rest
+
+    def read(self, size: int = -1) -> bytes:
+        if size is None or size < 0:
+            data = self._prefix
+            self._prefix = b""
+            return data + self._rest.read()
+        take = self._prefix[:size]
+        self._prefix = self._prefix[size:]
+        if len(take) < size:
+            take += self._rest.read(size - len(take))
+        return take
+
+    def close(self) -> None:
+        self._rest.close()
+
+
 class QueueHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+
+    def handle_one_request(self) -> None:
+        # A proxy may deliver a request body as chunked encoding. The standard
+        # library rejects that before the handler runs, so decode it here.
+        raw = self.rfile.readline(65537)
+        if not raw:
+            self.close_connection = True
+            return
+        try:
+            command, path, version = raw.decode("iso-8859-1").rstrip("\r\n").split()
+        except ValueError:
+            self._send(400, {"ok": False, "error": "bad_request"})
+            return
+        self.command, self.path, self.request_version = command, path, version
+        self.requestline = "%s %s %s" % (command, path, version)
+        self.headers = parse_headers(self.rfile)
+        connection = self.headers.get("Connection", "")
+        self.close_connection = version != "HTTP/1.1" or "close" in connection.lower()
+        encoding = self.headers.get("Transfer-Encoding", "")
+        if encoding:
+            if encoding.lower() != "chunked":
+                self._send(400, {"ok": False, "error": "bad_request"})
+                return
+            try:
+                body = _read_chunked(self.rfile)
+            except ValueError:
+                self._send(400, {"ok": False, "error": "bad_request"})
+                return
+            if len(body) > MAX_DOCUMENT_BYTES:
+                self._send(413, {"ok": False, "error": "too_large"})
+                return
+            del self.headers["Transfer-Encoding"]
+            self.headers["Content-Length"] = str(len(body))
+            self.rfile = _PrefixReader(body, self.rfile)
+            self.close_connection = True
+        handler = getattr(self, "do_" + command, None)
+        if handler is None:
+            self._send(405, {"ok": False, "error": "method_not_allowed"})
+            return
+        handler()
+        self.wfile.flush()
 
     def log_message(self, fmt: str, *args) -> None:
         # Request lines only. Headers can carry the bearer credential.
@@ -166,6 +228,34 @@ def _limit(query: str) -> int:
                 return 200
             return max(1, min(value, 500))
     return 200
+
+
+def _read_chunked(stream) -> bytes:
+    chunks = []
+    total = 0
+    while True:
+        line = stream.readline(65537)
+        if not line:
+            raise ValueError("short chunk")
+        try:
+            size = int(line.split(b";", 1)[0], 16)
+        except ValueError as exc:
+            raise ValueError("bad chunk size") from exc
+        if size < 0 or total + size > MAX_DOCUMENT_BYTES:
+            raise ValueError("chunk too large")
+        if size == 0:
+            while True:
+                trailer = stream.readline(65537)
+                if trailer in (b"\r\n", b"\n", b""):
+                    break
+            return b"".join(chunks)
+        data = stream.read(size)
+        if len(data) != size:
+            raise ValueError("short chunk")
+        chunks.append(data)
+        total += size
+        if stream.readline(65537) not in (b"\r\n", b"\n"):
+            raise ValueError("bad chunk end")
 
 
 def _if_match(header: str | None) -> int | None:
