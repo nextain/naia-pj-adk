@@ -117,3 +117,16 @@ completion:
     - use_case_test_result_from_a_named_person
     - verification_output_with_its_exit_code
   missing_step_behavior: report_status_to_a_human, do_not_close
+
+review_orchestration_caps:
+  # Observed 2026-10-06: instruction review ran 7, 4 and 9+ rounds on three
+  # parallel work items and delayed implementation by over an hour. One rule per
+  # line; the incident and its causes live in docs/INCIDENT-2026-10-06-review-loop.ko.md.
+  instruction_review_once: "Instruction review runs once. A second round only for a core behavior contradiction (data loss, billing error, race, security); every other finding is folded into the instruction and implementation starts, then code review confirms it."
+  code_review_max_two: "Code review runs at most twice. After that the coordinator reads the finding text and decides one of: pass, fix, or ask the owner."
+  coordinator_reads_every_fail: "The coordinator reads every FAIL text in the round it arrives. Monitoring covers progress (stage, round, time in stage), not only liveness (record timestamps)."
+  design_before_instruction: "Items that need design (races, structural change, new contracts) get their design fixed by the coordinator before the instruction exists. Instruction review is never used to do design."
+  instruction_is_short: "An instruction holds the requirement, the files to change, and the core tests only. Scope is stated per file; no function lists."
+  split_independent_items: "Independent items get separate instructions and commits, and the first one ready goes to DEV first."
+  stage_time_budget: "Stage budgets: analysis 15 minutes, instruction review once, implementation 30 minutes, code review twice. Past a budget the coordinator steps in and tells the owner the expected completion time."
+  enforcement: "alpha-adk .agents/scripts/review-run.mjs refuses the third round of the same gate and kind and prints the earlier FAIL summary; only the coordinator passes --coordinator-override with a reason. Any review runner used here keeps the same cap."
