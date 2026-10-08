@@ -1,0 +1,70 @@
+version: 1
+policy_contract_version: 1
+profile: local
+project:
+  id: naia-video-avatar
+  repository: nextain/naia-video-avatar
+  issue_tracker: github
+  default_branch: main
+  integration_branch: main
+workspace:
+  branch_pattern: "issue/<number>-<short-name>"
+local_workspace:
+  devices_dir: devices
+roles:
+  contributors: [contributor]
+  integrators: [integrator]
+  release_owners: [release_owner]
+team_policy:
+  authorization:
+    issue_required: true
+    chat_grants_authority: false
+    production_deploy_role: release_owner
+    database_write_requires_explicit_authority: true
+    issue_work_roles: [contributor, integrator, release_owner]
+  work_hours:
+    timezone: UTC
+    days: [mon, tue, wed, thu, fri]
+    start_hour: 9
+    end_hour: 17
+  approval:
+    production_deploy: required
+    high_system_risk: required
+    incident_rollback: without_approval
+  assignment:
+    issue_assignee_required: true
+    unanswered_thread_recipient: last_human_in_thread
+    default_responder_alias: null
+discord:
+  enabled: false
+  project_alias: naia-video-avatar
+  bot_token_env: DISCORD_BOT_TOKEN
+  runtime_registry: .runtime/participants.json
+  contact_window:
+    timezone: UTC
+    days: [mon, tue, wed, thu, fri]
+    start_hour: 9
+    end_hour: 17
+  default_responder_alias: null
+commands:
+  validate: 'for t in src/test/*.test.mjs; do node "$t" || exit 1; done && node scripts/check-traceability.mjs --enforce --strict-orphans'
+ops_profile:
+  stall_forbidden: true
+  inherit: execution.yaml
+  attention_routing:
+    bot_work_must_not_land_on_owner: true
+    our_turn: dispatch_not_escalate_to_owner
+    re_ask_fallback_to_owner: false
+artifacts:
+  pc: docs/planning/PC.md
+  sp: docs/planning/SP.md
+  sp_none_reason: null
+  uc: docs/progress/02.user-scenarios/INDEX.md
+  rq: docs/progress/01.requirements/INDEX.md
+  pl: docs/planning/PL.md
+  fe: docs/progress/04.features/INDEX.md
+  ut: docs/progress/05.features-tests/INDEX.md
+  it: docs/receipts
+  e2e: docs/progress/03.uc-tests/INDEX.md
+  receipts: docs/receipts
+  qc: docs/receipts

@@ -76,3 +76,17 @@ ops_profile:
     bot_work_must_not_land_on_owner: true
     our_turn: dispatch_not_escalate_to_owner
     re_ask_fallback_to_owner: false
+
+artifacts:
+  pc: null
+  sp: null
+  sp_none_reason: null
+  uc: null
+  rq: null
+  pl: null
+  fe: null
+  ut: null
+  it: null
+  e2e: null
+  receipts: null
+  qc: null

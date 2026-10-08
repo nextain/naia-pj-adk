@@ -13,3 +13,5 @@ Product source clones belong in `checkouts/`, not in this adapter directory.
   disabled until its placeholders are replaced and its production guard is
   implemented by the project owner.
 - Project commands do not grant authority; the role mapping and issue approval do.
+
+project.yaml 의 artifacts 를 채운다. 비워 둔 칸은 development-method.yaml 의 artifacts.location 기본 위치를 따른다. 화면이 없으면 sp 에 none 과 sp_none_reason 을 적는다.
