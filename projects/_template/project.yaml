@@ -148,3 +148,17 @@ tiers:
     database: never_store_credentials_here
     deployable_by: [release_owner]
     reachable: false
+
+artifacts:
+  pc: null
+  sp: null
+  sp_none_reason: null
+  uc: null
+  rq: null
+  pl: null
+  fe: null
+  ut: null
+  it: null
+  e2e: null
+  receipts: null
+  qc: null

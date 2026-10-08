@@ -15,3 +15,5 @@ Read the repository root `AGENTS.md`, then `docs/WORKSPACE.ko.md`, then
 - Keep participant identities in the ignored `.runtime/` registry.
 - Record all work, validation and acceptance in the GitHub issue. Posting is not
   receiving and receiving is not starting; only a start receipt is a start.
+
+project.yaml 의 artifacts 를 채운다. 비워 둔 칸은 development-method.yaml 의 artifacts.location 기본 위치를 따른다. 화면이 없으면 sp 에 none 과 sp_none_reason 을 적는다.

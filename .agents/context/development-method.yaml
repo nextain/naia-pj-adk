@@ -29,15 +29,18 @@ change_classification:
   classes:
     - id: simple_change
       definition: one file family, no schema change, no new user-visible behavior
-      requires: [issue, verification, rollback]
+      # UT is required only when code changes (artifacts.UT.condition).
+      requires: [issue, verification, rollback, UT]
     - id: feature_change
       definition: new or changed user-visible behavior, or multiple coupled files
-      requires: [issue, use_case, feature_spec, tests, verification, rollback]
+      # SP is required only when a screen unit changes (artifacts.SP.condition).
+      requires: [issue, use_case, feature_spec, tests, verification, rollback, RQ, IT, E2E]
     - id: high_impact_change
       definition: >
         shared data, authority, routing, credentials, or anything touching a
         production tier
-      requires: [everything_in_feature_change, independent_review]
+      # PC, SP, PL, and QC are required for high impact changes.
+      requires: [everything_in_feature_change, independent_review, PC, SP, PL, QC]
   misclassification_behavior: escalate_to_the_larger_class
   rationale: >
     The cost of treating a simple change as a feature is a little paperwork.
@@ -45,6 +48,7 @@ change_classification:
 
 use_case:
   # What the requester wants, in their words, testable.
+  maps_to: UC
   written_by: requester_or_agent_on_their_behalf
   confirmed_by: requester
   fields: [actor, precondition, steps, expected_result, acceptance_criteria]
@@ -53,6 +57,7 @@ use_case:
 
 feature_spec:
   # What will be built, and what it touches.
+  maps_to: FE
   derived_from: use_case
   fields: [behavior, interface, data, impact_scope, out_of_scope]
   impact_scope_layers:
@@ -65,10 +70,12 @@ feature_spec:
 
 tests:
   use_case_test:
+    maps_to: E2E
     purpose: proves the requester's scenario works
     run_by: human_against_the_running_environment
     gates: deployment_acceptance
   feature_test:
+    maps_to: UT
     purpose: proves the behavior and prevents regression
     run_by: automation
     gates: merge
@@ -108,6 +115,121 @@ shared_data:
     rationale: >
       A shared database is saturated by heavy reads, not only by writes, and a
       thin development copy does not predict production behaviour.
+
+artifacts:
+  # Default locations; a project may override them in project.yaml `artifacts`.
+  PC:
+    purpose: "defines why the product or project is built, its core essence, user value, information architecture, and ownership boundaries"
+    id_rule: PC
+    derived_from: []
+    required_for: [high_impact_change]
+    condition: "one per project; create only when missing"
+    owner: null
+    location: docs/planning/PC.md
+  SP:
+    purpose: "defines the space and wireframes seen by users, including layout, visual component placement, and navigation flow"
+    id_rule: SP-NN
+    derived_from: [PC]
+    required_for: [feature_change, high_impact_change]
+    condition: "feature_change only when a screen unit changes"
+    owner: null
+    location: docs/planning/SP-NN.md
+  UC:
+    purpose: "describes the end-to-end user journey, context, and motivation as users enter, achieve goals, and exit"
+    id_rule: UC-NN
+    derived_from: [SP]
+    required_for: [feature_change, high_impact_change]
+    condition: "always"
+    owner: null
+    location: docs/planning/UC-NN.md
+  RQ:
+    purpose: "specifies functional and non-functional conditions and measurable acceptance criteria required to fulfill UC and SP"
+    id_rule: RQ-NN
+    derived_from: [UC]
+    required_for: [feature_change, high_impact_change]
+    condition: "always"
+    owner: null
+    location: docs/planning/RQ-NN.md
+  PL:
+    purpose: "verifies technical reality and establishes architecture and a phased implementation roadmap"
+    id_rule: PL-NN
+    derived_from: [RQ]
+    required_for: [high_impact_change]
+    condition: "always"
+    owner: null
+    location: docs/planning/PL-NN.md
+  FE:
+    purpose: "defines concrete feature units specifying what to build to realize UC and RQ"
+    id_rule: FE-NN
+    derived_from: [UC, RQ, PL]
+    required_for: [feature_change, high_impact_change]
+    condition: "PL is an input only when it exists"
+    owner: null
+    location: docs/planning/FE-NN.md
+  UT:
+    purpose: "verifies that feature units operate according to FE specifications"
+    id_rule: UT-NN
+    derived_from: [FE]
+    required_for: [simple_change, feature_change, high_impact_change]
+    condition: "simple_change only when code changes"
+    owner: implementer
+    location: project test directory
+  IT:
+    purpose: "verifies end-to-end backend components through APIs, database, and queues without user interface"
+    id_rule: RECEIPT-IT-{ISSUE}-{YYYYMMDD}-{SEQ}
+    derived_from: [FE]
+    required_for: [feature_change, high_impact_change]
+    condition: "always"
+    owner: implementer
+    location: docs/receipts/RECEIPT-IT-{ISSUE}-{YYYYMMDD}-{SEQ}.md
+  E2E:
+    purpose: "verifies the complete user journey from real screen to real backend against UC"
+    id_rule: RECEIPT-E2E-{ISSUE}-{YYYYMMDD}-{SEQ}
+    derived_from: [SP, UC]
+    required_for: [feature_change, high_impact_change]
+    condition: "not applicable only for a unit whose SP has no screen, citing that SP section"
+    owner: implementer
+    location: docs/receipts/RECEIPT-E2E-{ISSUE}-{YYYYMMDD}-{SEQ}.md
+  QC:
+    purpose: "validates adversarial user value and safety against PC and SP independently from developer scenarios"
+    id_rule: QC-NN
+    derived_from: [PC, SP]
+    required_for: [high_impact_change]
+    condition: "always"
+    owner: independent_qc
+    location: docs/receipts/QC-NN.md
+
+planning_order:
+  sequence: [PC, SP, UC, RQ, PL, FE]
+  phases: [technical_review, document_planning, issue, implementation]
+
+feedback_loop:
+  rule: a document error found during implementation is fixed in the upstream document first, then reflected downstream
+
+implementation_order:
+  sequence: [UT, IT, SCREEN, E2E, QC]
+  rule: no screen expansion before the IT gate passes
+
+scope_lock:
+  name: pre-issue scope lock
+  before: issue
+  records: [source_digests, requirement_units, acceptance, disposition, owner, transition_condition]
+  approval_filled_by: human_only
+  ai_may_decide_disposition: false
+  relock_when: [issue_changes, acceptance_changes]
+
+receipts:
+  fields: [total, passed, failed, skipped, exit_code, target_url, artifact_paths, reviewer_questions]
+  reviewer_questions: [Q1, Q2, Q3]
+  closure:
+    requires: [IT, E2E]
+    e2e_not_applicable_only_when: the unit's SP has no screen, with the SP section cited
+    note: a unit whose SP has a screen needs E2E even when only the backend changed
+
+qc:
+  inputs: [PC, SP]
+  independent_session: true
+  rule: QC runs in a session and actor separate from the implementer and reads only PC and SP
 
 completion:
   # Repeated here because this is the axis people skip first.
