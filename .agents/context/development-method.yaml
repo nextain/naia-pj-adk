@@ -123,10 +123,29 @@ review_orchestration_caps:
   # parallel work items and delayed implementation by over an hour. One rule per
   # line; the incident and its causes live in docs/INCIDENT-2026-10-06-review-loop.ko.md.
   instruction_review_once: "Instruction review runs once. A second round only for a core behavior contradiction (data loss, billing error, race, security); every other finding is folded into the instruction and implementation starts, then code review confirms it."
-  code_review_max_two: "Code review runs at most twice. After that the coordinator reads the finding text and decides one of: pass, fix, or ask the owner."
+  code_review_max_two: "Code review runs at most twice. After that the coordinator reads the finding text and either fixes and reruns with an override, or asks the owner. The coordinator never turns a FAIL into a pass."
   coordinator_reads_every_fail: "The coordinator reads every FAIL text in the round it arrives. Monitoring covers progress (stage, round, time in stage), not only liveness (record timestamps)."
   design_before_instruction: "Items that need design (races, structural change, new contracts) get their design fixed by the coordinator before the instruction exists. Instruction review is never used to do design."
   instruction_is_short: "An instruction holds the requirement, the files to change, and the core tests only. Scope is stated per file; no function lists."
   split_independent_items: "Independent items get separate instructions and commits, and the first one ready goes to DEV first."
   stage_time_budget: "Stage budgets: analysis 15 minutes, instruction review once, implementation 30 minutes, code review twice. Past a budget the coordinator steps in and tells the owner the expected completion time."
-  enforcement: "alpha-adk .agents/scripts/review-run.mjs refuses the third round of the same gate and kind and prints the earlier FAIL summary; only the coordinator passes --coordinator-override with a reason. Any review runner used here keeps the same cap."
+  enforcement: "The review runner (reference implementation: alpha-adk .agents/scripts/review-run.mjs with .claude/hooks/lib/review-integrity.js) refuses the third round of the same issue, stage and target, counted from the per-issue verdict history so renaming a gate does not reset it, and prints the earlier FAIL summary; only the coordinator passes --coordinator-override with a reason, and every override is recorded and announced on the team channel. An override lifts the round cap only. Any review runner used here keeps the same cap."
+
+review_integrity:
+  # Observed 2026-10-08: a product feature drifted from the owner's definition
+  # although every stage had an adversarial review. The basis slid from the
+  # owner's words to AI-written design notes, a later FAIL did not cancel an
+  # earlier PASS, renaming a gate reset the round count, and five design FAILs
+  # were waved through by the coordinator. One rule per line; the incident
+  # lives in docs/INCIDENT-2026-10-08-review-drift.ko.md.
+  pass_rule: "A stage passes when the latest verdict for the same issue, canonical stage and target is a single PASS. A later FAIL voids earlier PASS records and every later stage."
+  canonical_stages: "plan < design < instruction < code < qc. Design is a reviewed stage, not a coordinator note."
+  owner_source_basis: "Every review basis includes at least one owner-source record: a file whose name starts with the owner-source prefix (luke- in the reference workspace) holding the owner's verbatim utterances or requests. A basis of AI-written design or summary documents alone is refused."
+  basis_bound_by_hash: "Basis files are hashed into the verdict record. If a basis file changes after the review, the review is void."
+  history_keyed_by_issue: "Verdict history is stored per issue and keyed by stage and target, not by the gate or work folder name. A consumer never accepts an old PASS from another work folder when a newer verdict exists."
+  upstream_lock: "A plan or design FAIL cannot be overridden by the coordinator, and while it stands the runner refuses later-stage reviews and the run gate refuses agent runs. Only the owner's one-time code typed in the conversation opens it; an AI-written approval file, quote or flag does not."
+  override_notice: "Every override (coordinator round-cap override or owner one-time code) is appended to the override log and announced on the team channel. A failed announcement is recorded and reported, and does not block."
+  fixed_questions: "Every review prompt carries two fixed questions added by the runner: did the basis narrow the scope relative to the owner's words or prior art, and did the work invent a method different from the reference implementation."
+  no_decision_from_implementation: "A decision document is never rewritten to match an implementation. Owner-reserved product and scope decisions close only with the owner's actual approval."
+  blocking_tests: "The runner ships tests proving that gate renaming, stale PASS reuse, summary-as-source, AI proxy approval and design-FAIL override are all refused."
+  enforced_by: "alpha-adk review-run.mjs (runner), .claude/hooks/lib/agent-run-gate.js (agent run consumer) and .claude/hooks/deploy-guard.js (owner one-time code). A project that runs its own review runner must implement the same checks before it claims this method."
