@@ -38,5 +38,7 @@ third_party:
 public_release:
   default: forbidden
   review_scope: [working_tree, hidden_files, generated_files, requirements, progress, logs, git_history, tags, workflows, submodules, licenses]
+  push_to_existing_public_repository: session_merges_after_zero_hit_public_safety_scan_and_review_pass
   approval: owner_must_approve_exact_commit_sha
+  approval_applies_to: [public_creation, visibility_change, template_publication, tags, packages, store_release]
   candidate_change_invalidates_approval: true
