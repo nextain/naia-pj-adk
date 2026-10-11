@@ -31,6 +31,7 @@ Before acting, read:
 - Public creation, visibility change, template publication, or public push fails closed until the full tree and reachable Git history pass public-safety review and the owner approves the exact commit SHA. This candidate preparation does not perform those external actions.
 - Classify the change before assigning it. A feature needs a confirmed use case and a feature spec before implementation starts; skipping that is how part of a task gets reported as all of it.
 - A term that is not in the glossary is a question, not a guess.
+- Plans, instructions, review requests and completion reports follow `.agents/context/regression-prevention.json`: removing a user-visible feature needs a dated requester quote, and completion needs every changed user entry point checked. Recover from drift with `docs/guides/drift-recovery.md`. Both are a pinned copy from naia-adk (`vendor/naia-adk-process-rules.lock.json`); the review-pass preflight they mention is naia-adk's `skills/review-pass`.
 - A deployment guard is a command that exits non-zero, not a paragraph. An adapter whose `execution` commands are still `null` is not ready for the target those commands name.
 - Deployment is incomplete until the new revision is proven to be serving. Writing files, reloading a process, and taking effect are three different events.
 - A pass means the asserted body content appeared twice in a row and the checking process exited zero. A status code alone is not a pass.

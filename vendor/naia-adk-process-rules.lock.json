@@ -1,0 +1,15 @@
+{
+  "_doc": "Fixed copy of the naia-adk process rules (naia-adk is canonical for shared harness parts; this repository consumes a pinned copy). Update by copying the files from the pinned naia-adk commit and refreshing these hashes. Checked by scripts/regression-prevention.test.mjs.",
+  "source_repo": "nextain/naia-adk",
+  "source_commit": "3d44c045",
+  "files": [
+    {
+      "path": ".agents/context/regression-prevention.json",
+      "sha256": "ade4fd97cc9301a62ec8a5ed9353e7e2a06973c43c8ffe7ac360f253176f397f"
+    },
+    {
+      "path": "docs/guides/drift-recovery.md",
+      "sha256": "8c6260227633a1b13b699dcceb33a82ff4a30c4f676245c8582be9c05af0b00a"
+    }
+  ]
+}
