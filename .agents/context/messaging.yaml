@@ -28,3 +28,15 @@ rule: >
   adapters may call the shared engine API; they never copy its implementation.
   Package availability does not prove that an adapter has adopted it or that
   its designated runtime has been verified.
+
+# 사람이 공지하는 채널의 수신 구조. 사람이 읽는 설명: docs/MESSENGER-INTAKE.ko.md
+# 역할 세션이 채널에 계속 붙어 있으면 세션이 꺼질 때 받을 곳이 함께 사라지고,
+# 붙어 있는 동안에는 글마다 그 세션의 문맥이 다시 실린다.
+intake:
+  listener: layer4_watcher_script
+  listener_is_model_session: false
+  listener_is_the_single_gateway_consumer: true
+  order: [receive, decide_owner, wake_owner_layer2_session, hand_over]
+  owner_session_offline: keep_in_owner_inbox
+  layer2_sessions_stay_connected: false
+  session_to_session_messages: own_messenger_later
