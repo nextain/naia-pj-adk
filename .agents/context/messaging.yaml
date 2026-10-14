@@ -83,3 +83,12 @@ announcement_updates_shared_context:
     thread_member_order: [addressed_member, broadcast_word_all_members, owner_if_member]
     non_member_roles_never_woken: true
     role_bot_reply_targets: [announcement_channel, mapped_open_threads]
+  replies_and_review_requests:
+    reply_with: own_role_bot_only
+    never_post_with: [other_role_bot, other_instance_bot]
+    bot_binding: one_role_per_bot_per_instance
+    review_request_via: instance_internal_doc_url
+    review_request_fallback: [messenger_attachment, direct_message]
+    review_request_never: vendor_hosted_external_share_pages
+  instance_checklist: [layer4_wakes_layer2_no_resident_bot, body_for_everyone_work_in_human_threads, thread_wakes_member_role_bots_only, own_bot_replies, announcement_updates_shared_context_and_process_canonical, review_by_internal_doc_url_or_attachment]
+  instance_values_live_in: [layer4_config, shared_context]
