@@ -70,3 +70,14 @@ announcement_updates_shared_context:
     broadcast_only_when_everyone_is_called: true
     model_failure: default_contact_role_only_never_retry_or_drop
     log_route_and_reason: true
+  announcement_body_and_work_threads:
+    channel_body: everyone_must_see_only
+    work_threads_created_by: human
+    one_thread_per: interest_or_project
+    work_talk_reports_reviews_in: owning_thread
+    no_matching_thread: notify_default_contact_role_never_post_to_body
+    thread_owner_map: [shared_context, layer4_config]
+    thread_owner_map_decided_by: default_contact_role
+    layer4_reads_active_threads: true
+    thread_routing: owner_plus_mentioned_bots_else_route_order
+    role_bot_reply_targets: [announcement_channel, mapped_open_threads]
