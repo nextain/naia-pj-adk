@@ -79,5 +79,7 @@ announcement_updates_shared_context:
     thread_owner_map: [shared_context, layer4_config]
     thread_owner_map_decided_by: default_contact_role
     layer4_reads_active_threads: true
-    thread_routing: owner_plus_mentioned_bots_else_route_order
+    thread_routing: thread_member_role_bots_only
+    thread_member_order: [addressed_member, broadcast_word_all_members, owner_if_member]
+    non_member_roles_never_woken: true
     role_bot_reply_targets: [announcement_channel, mapped_open_threads]
