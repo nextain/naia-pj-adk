@@ -40,3 +40,33 @@ intake:
   owner_session_offline: keep_in_owner_inbox
   layer2_sessions_stay_connected: false
   session_to_session_messages: own_messenger_later
+
+# 공지는 공유 맥락 갱신이다. 설명: docs/MESSENGER-INTAKE.ko.md 5절
+# 깨움 글은 세션이 꺼지거나 압축되면 사라지므로, 공지는 역할들이 함께 보는 문서에 남긴다.
+announcement_updates_shared_context:
+  shared_context_document: one_per_instance
+  sections: [decisions_and_directives, role_authority_and_ownership, shared_open_items, raw_log]
+  valid_entries_only: true
+  corrected_entries: keep_corrected_side_mark_old_as_corrected
+  layer4:
+    model_judgement: routing_only
+    raw_log_append: verbatim
+    raw_log_dedupe_by: message_id
+    raw_log_order_by: message_id
+    pick_single_owner: first_named_or_mentioned_role_else_instance_default
+    mark_process_candidate_by_keywords: true
+    wake_text_includes: [update_shared_context_task, shared_context_path, owner]
+  layer2_owner:
+    edits: [decisions_and_directives, role_authority_and_ownership, shared_open_items]
+    links_change_location_in_raw_log: true
+    judges_process_announcement: true
+  layer2_other_roles: read_only
+  roles_read_first: [session_start, after_compaction]
+  process_announcement:
+    also_update_process_canonical: true
+    canonical_order: [common_structure_in_naia_pj_adk, instance_role_and_procedure_docs, rules_file_one_line_only_when_needed]
+  route_to_addressed_roles_only:
+    order: [bot_mention_only, role_name_only, broadcast_words_all_roles, small_model_picks_roles, default_contact_role_only]
+    broadcast_only_when_everyone_is_called: true
+    model_failure: default_contact_role_only_never_retry_or_drop
+    log_route_and_reason: true
