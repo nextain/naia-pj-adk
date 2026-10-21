@@ -1,0 +1,10 @@
+# Moves one read-only documents checkout to its upstream branch.
+# %i names a settings file: ~/.config/naia-docs-follow/%i.env
+# See docs/pipeline/DOCUMENT-DRIVEN-DEVELOPMENT.md, "Following upstream documents".
+[Unit]
+Description=Follow upstream documents (%i)
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/naia-docs-follow/%i.env
+ExecStart=/usr/bin/env bash ${DOCS_FOLLOW_SCRIPT}
