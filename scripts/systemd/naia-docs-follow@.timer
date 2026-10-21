@@ -1,0 +1,10 @@
+# Runs naia-docs-follow@%i.service every five minutes.
+[Unit]
+Description=Follow upstream documents every five minutes (%i)
+
+[Timer]
+OnCalendar=*:0/5
+Persistent=true
+
+[Install]
+WantedBy=timers.target
